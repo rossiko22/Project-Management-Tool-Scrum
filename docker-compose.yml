@@ -1,0 +1,278 @@
+services:
+  # PostgreSQL Databases
+  identity-db:
+    image: postgres:15-alpine
+    container_name: identity-db
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  scrum-core-db:
+    image: postgres:15-alpine
+    container_name: scrum-core-db
+    environment:
+      POSTGRES_DB: scrum_core_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - scrum-core-db-data:/var/lib/postgresql/data
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  collaboration-db:
+    image: postgres:15-alpine
+    container_name: collaboration-db
+    environment:
+      POSTGRES_DB: collaboration_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - collaboration-db-data:/var/lib/postgresql/data
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reporting-db:
+    image: postgres:15-alpine
+    container_name: reporting-db
+    environment:
+      POSTGRES_DB: reporting_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - reporting-db-data:/var/lib/postgresql/data
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka Infrastructure
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # Backend Services
+  identity-service:
+    build:
+      context: ./backend/identity-service
+      dockerfile: Dockerfile
+    container_name: identity-service
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://identity-db:5432/identity_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+      JWT_EXPIRATION: 28800000
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  scrum-core-service:
+    build:
+      context: ./backend/scrum-core-service
+      dockerfile: Dockerfile
+    container_name: scrum-core-service
+    depends_on:
+      scrum-core-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://scrum-core-db:5432/scrum_core_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+      SERVER_PORT: 8081
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  collaboration-service:
+    build:
+      context: ./backend/collaboration-service
+      dockerfile: Dockerfile
+    container_name: collaboration-service
+    depends_on:
+      collaboration-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: collaboration-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: collaboration_db
+      KAFKA_BROKER: kafka:9092
+      KAFKA_GROUP_ID: collaboration-service-group
+      JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  reporting-service:
+    build:
+      context: ./backend/reporting-service
+      dockerfile: Dockerfile
+    container_name: reporting-service
+    depends_on:
+      reporting-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: reporting-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: reporting_db
+      KAFKA_BROKER: kafka:9092
+      KAFKA_GROUP_ID: reporting-service-group
+      JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx API Gateway (also serves frontend apps)
+  nginx-gateway:
+    build:
+      context: .
+      dockerfile: ./backend/nginx/Dockerfile
+    container_name: nginx-gateway
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      scrum-core-service:
+        condition: service_healthy
+      collaboration-service:
+        condition: service_healthy
+      reporting-service:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  scrum-network:
+    driver: bridge
+
+volumes:
+  identity-db-data:
+  scrum-core-db-data:
+  collaboration-db-data:
+  reporting-db-data:

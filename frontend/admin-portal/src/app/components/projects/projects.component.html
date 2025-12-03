@@ -1,0 +1,133 @@
+<div class="dashboard">
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Admin Portal</h2>
+    </div>
+    <ul class="nav-menu">
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active">
+          <span>📊</span> Dashboard
+        </a>
+      </li>
+      <li>
+        <a routerLink="/users" routerLinkActive="active">
+          <span>👥</span> Users
+        </a>
+      </li>
+      <li>
+        <a routerLink="/projects" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <span>📁</span> Projects
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <main class="main-content">
+    <header class="page-header">
+      <h1>Project Management</h1>
+      <button class="btn-primary" (click)="toggleCreateForm()">
+        <span>➕</span> {{ showCreateForm ? 'Cancel' : 'Create New Project' }}
+      </button>
+    </header>
+
+    <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+    <div *ngIf="success" class="alert alert-success">{{ success }}</div>
+
+    <!-- Create Project Form -->
+    <div class="card" *ngIf="showCreateForm">
+      <h2>Create New Project</h2>
+      <form [formGroup]="createProjectForm" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+          <label for="name">Project Name *</label>
+          <input
+            type="text"
+            id="name"
+            formControlName="name"
+            placeholder="Enter project name"
+            [class.invalid]="createProjectForm.get('name')?.invalid && createProjectForm.get('name')?.touched"
+          />
+          <span class="error-message" *ngIf="createProjectForm.get('name')?.invalid && createProjectForm.get('name')?.touched">
+            Project name is required
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description *</label>
+          <textarea
+            id="description"
+            formControlName="description"
+            placeholder="Enter project description"
+            rows="4"
+            [class.invalid]="createProjectForm.get('description')?.invalid && createProjectForm.get('description')?.touched"
+          ></textarea>
+          <span class="error-message" *ngIf="createProjectForm.get('description')?.invalid && createProjectForm.get('description')?.touched">
+            Description is required
+          </span>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" (click)="toggleCreateForm()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="createProjectForm.invalid || loading">
+            {{ loading ? 'Creating...' : 'Create Project' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="card">
+      <div class="search-bar">
+        <input
+          type="text"
+          placeholder="Search projects by name or description..."
+          [(ngModel)]="searchTerm"
+          (input)="searchProjects()"
+        />
+        <span class="search-icon">🔍</span>
+      </div>
+    </div>
+
+    <!-- Projects List -->
+    <div class="card">
+      <div class="table-header">
+        <h2>Projects List</h2>
+        <span class="count-badge">{{ filteredProjects.length }} projects</span>
+      </div>
+
+      <div *ngIf="loading" class="loading">Loading projects...</div>
+
+      <div *ngIf="!loading && filteredProjects.length === 0" class="empty-state">
+        <p>No projects found</p>
+        <p *ngIf="!showCreateForm" class="hint">Click "Create New Project" to get started</p>
+      </div>
+
+      <div *ngIf="!loading && filteredProjects.length > 0" class="projects-grid">
+        <div class="project-card" *ngFor="let project of filteredProjects">
+          <div class="project-header">
+            <h3>{{ project.name }}</h3>
+            <span class="project-id">#{{ project.id }}</span>
+          </div>
+          <p class="project-description">{{ project.description }}</p>
+          <div class="project-meta">
+            <span class="meta-item">
+              <span class="meta-label">Created:</span>
+              <span class="meta-value">{{ project.createdAt | date:'mediumDate' }}</span>
+            </span>
+            <span class="meta-item" *ngIf="project.organizationId">
+              <span class="meta-label">Org ID:</span>
+              <span class="meta-value">{{ project.organizationId }}</span>
+            </span>
+          </div>
+          <div class="project-actions">
+            <button class="btn-sm btn-primary" (click)="viewProject(project)" title="View Details">
+              View
+            </button>
+            <button class="btn-sm btn-secondary" (click)="editProject(project)" title="Edit Project">
+              Edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

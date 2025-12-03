@@ -1,0 +1,86 @@
+<div class="dashboard">
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Admin Portal</h2>
+    </div>
+    <ul class="nav-menu">
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active">
+          <span>📊</span> Dashboard
+        </a>
+      </li>
+      <li *ngIf="isAdmin()">
+        <a routerLink="/users" routerLinkActive="active">
+          <span>👥</span> Users
+        </a>
+      </li>
+      <li>
+        <a routerLink="/projects" routerLinkActive="active">
+          <span>📁</span> Projects
+        </a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-info" *ngIf="currentUser">
+        <p>{{ currentUser.firstName }} {{ currentUser.lastName }}</p>
+        <small>{{ currentUser.email }}</small>
+      </div>
+      <button class="btn-logout" (click)="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <header class="page-header">
+      <h1>Welcome to Scrum Management Platform</h1>
+      <p *ngIf="currentUser">Hello, {{ currentUser.firstName }}!</p>
+    </header>
+
+    <div class="dashboard-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👥</div>
+          <div class="stat-info">
+            <h3>Users</h3>
+            <p class="stat-value">-</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">📁</div>
+          <div class="stat-info">
+            <h3>Projects</h3>
+            <p class="stat-value">-</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">🏃</div>
+          <div class="stat-info">
+            <h3>Active Sprints</h3>
+            <p class="stat-value">-</p>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon">✅</div>
+          <div class="stat-info">
+            <h3>Completed Tasks</h3>
+            <p class="stat-value">-</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <h2>Quick Actions</h2>
+        <div class="action-buttons">
+          <button class="action-btn" routerLink="/users" *ngIf="isAdmin()">
+            <span>➕</span> Add User
+          </button>
+          <button class="action-btn" routerLink="/projects">
+            <span>📁</span> Create Project
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
