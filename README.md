@@ -27,4 +27,4 @@ docker-compose up --build
 - PostgreSQL databases
 - Nginx API Gateway
 
-For detailed documentation, see architecture-docs/
+For detailed documentation, see architecture-docs
