@@ -31,7 +31,7 @@ jobs:
         working-directory: ./backend/identity-service
         run: mvn jacoco:report
 
-      - name: Upload backend coverage reports
+      - name: Upload backend coverage report
         uses: actions/upload-artifact@v4
         with:
           name: backend-coverage-report
@@ -42,7 +42,11 @@ jobs:
         working-directory: ./backend/identity-service
         run: |
           echo "Backend Test Coverage Summary:"
-          cat target/site/jacoco/index.html | grep -o 'Total[^<]*' | head -1 || echo "Coverage report generated"
+          if grep -q "Total" target/site/jacoco/index.html; then
+            grep -o "Total[^<]*" target/site/jacoco/index.html | head -1
+          else
+            echo "Coverage report generated"
+          fi
 
   frontend-team-portal-tests:
     name: Frontend Team Portal Tests & Coverage
@@ -57,7 +61,8 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/team-portal/package-lock.json
+          cache-dependency-path: |
+            frontend/team-portal/package-lock.json
 
       - name: Install dependencies
         working-directory: ./frontend/team-portal
@@ -78,7 +83,7 @@ jobs:
         working-directory: ./frontend/team-portal
         run: |
           echo "Team Portal Test Coverage Summary:"
-          if [ -f coverage/team-portal/index.html ]; then
+          if [ -f coverage/index.html ]; then
             echo "Coverage report generated successfully"
           fi
 
@@ -95,7 +100,8 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/admin-portal/package-lock.json
+          cache-dependency-path: |
+            frontend/admin-portal/package-lock.json
 
       - name: Install dependencies
         working-directory: ./frontend/admin-portal
@@ -116,7 +122,7 @@ jobs:
         working-directory: ./frontend/admin-portal
         run: |
           echo "Admin Portal Test Coverage Summary:"
-          if [ -f coverage/admin-portal/index.html ]; then
+          if [ -f coverage/index.html ]; then
             echo "Coverage report generated successfully"
           fi
 
@@ -131,15 +137,13 @@ jobs:
         run: |
           echo "## CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ All test suites have been executed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Results:" >> $GITHUB_STEP_SUMMARY
           echo "- Backend Tests: ${{ needs.backend-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Team Portal Tests: ${{ needs.frontend-team-portal-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Admin Portal Tests: ${{ needs.frontend-admin-portal-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Coverage Reports:" >> $GITHUB_STEP_SUMMARY
-          echo "Coverage reports are available as workflow artifacts:" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts available:" >> $GITHUB_STEP_SUMMARY
           echo "- backend-coverage-report" >> $GITHUB_STEP_SUMMARY
           echo "- team-portal-coverage-report" >> $GITHUB_STEP_SUMMARY
           echo "- admin-portal-coverage-report" >> $GITHUB_STEP_SUMMARY
