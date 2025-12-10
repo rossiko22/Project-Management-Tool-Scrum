@@ -10,7 +10,13 @@ export class ProjectService {
   constructor(private api: ApiService) {}
 
   getAllProjects(): Observable<Project[]> {
+    console.log('Fetching all projects from API...');
     return this.api.get<Project[]>('/projects');
+  }
+
+  getProjects(): Observable<Project[]> {
+    console.log('Getting projects...');
+    return this.getAllProjects();
   }
 
   getProjectById(id: number): Observable<Project> {

@@ -1,0 +1,78 @@
+<div class="board-container">
+  <!-- Header -->
+  <div class="board-header">
+    <div class="header-left">
+      <h1>Sprint Board</h1>
+      <p class="subtitle" *ngIf="currentSprint">{{ currentSprint.name }} - {{ currentSprint.goal }}</p>
+      <p class="subtitle" *ngIf="!currentSprint">No active sprint</p>
+    </div>
+    <div class="header-right">
+      <select *ngIf="projects.length > 1" [(ngModel)]="selectedProject" (change)="loadActiveSprint()" class="project-selector">
+        <option *ngFor="let project of projects" [ngValue]="project">{{ project.name }}</option>
+      </select>
+      <select [(ngModel)]="filterAssignee" class="filter-select">
+        <option value="ALL">All Tasks</option>
+        <option value="ME">My Tasks</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-banner">
+    <span>⚠️ {{ error }}</span>
+    <button (click)="error = null" class="btn-close">✕</button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading sprint board...</p>
+  </div>
+
+  <!-- Kanban Board -->
+  <div *ngIf="!loading && currentSprint" class="kanban-board">
+    <div *ngFor="let column of columns" class="board-column" [ngClass]="getColumnClass(column.id)">
+      <div class="column-header">
+        <h3>{{ column.title }}</h3>
+        <span class="task-count">{{ getColumnTasks(column).length }}</span>
+      </div>
+
+      <div
+        cdkDropList
+        [id]="column.id"
+        [cdkDropListData]="column.tasks"
+        [cdkDropListConnectedTo]="connectedDropLists"
+        (cdkDropListDropped)="onDrop($event, column)"
+        class="task-list"
+      >
+        <div
+          *ngFor="let task of getColumnTasks(column)"
+          cdkDrag
+          [cdkDragData]="task"
+          class="task-card"
+        >
+          <div class="task-header">
+            <h4 class="task-title">{{ task.title }}</h4>
+          </div>
+          <p *ngIf="task.description" class="task-description">{{ task.description }}</p>
+          <div class="task-footer">
+            <span *ngIf="task.estimatedHours" class="task-hours">⏱️ {{ task.estimatedHours }}h</span>
+            <span *ngIf="task.assigneeId" class="task-assignee">👤 Assigned</span>
+          </div>
+        </div>
+
+        <div *ngIf="getColumnTasks(column).length === 0" class="empty-column">
+          No tasks
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Active Sprint State -->
+  <div *ngIf="!loading && !currentSprint" class="empty-state">
+    <div class="empty-icon">📋</div>
+    <h3>No Active Sprint</h3>
+    <p>Start a sprint to use the board</p>
+    <a routerLink="/sprints" class="btn-primary">Go to Sprints</a>
+  </div>
+</div>

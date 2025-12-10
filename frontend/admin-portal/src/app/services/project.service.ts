@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService } from './api.service';
-import { Project, Team } from '../models/project.model';
+import { Project, Team, CreateProjectRequest, AssignTeamRequest } from '../models/project.model';
 
 @Injectable({
   providedIn: 'root'
@@ -17,8 +17,12 @@ export class ProjectService {
     return this.api.get<Project>(`/projects/${id}`);
   }
 
-  createProject(project: Partial<Project>): Observable<Project> {
-    return this.api.post<Project>('/projects', project);
+  createProject(request: CreateProjectRequest): Observable<Project> {
+    return this.api.post<Project>('/projects', request);
+  }
+
+  assignTeam(projectId: number, request: AssignTeamRequest): Observable<Project> {
+    return this.api.post<Project>(`/projects/${projectId}/assign-team`, request);
   }
 
   updateProject(id: number, project: Partial<Project>): Observable<Project> {

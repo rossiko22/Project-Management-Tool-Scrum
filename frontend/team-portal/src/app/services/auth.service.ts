@@ -29,12 +29,15 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
+    console.log('Attempting login...');
     return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/authenticate`, credentials)
       .pipe(
         tap(response => {
+          console.log('Login successful, storing token and user');
           localStorage.setItem(this.tokenKey, response.token);
           localStorage.setItem('current_user', JSON.stringify(response.user));
           this.currentUserSubject.next(response.user);
+          console.log('User authenticated:', response.user);
         })
       );
   }

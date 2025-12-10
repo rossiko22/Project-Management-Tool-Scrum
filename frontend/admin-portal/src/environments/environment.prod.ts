@@ -4,5 +4,5 @@ export const environment = {
   scrumApiUrl: '/api/scrum',
   collaborationApiUrl: '/api/collaboration',
   reportingApiUrl: '/api/reporting',
-  wsUrl: 'ws://localhost/ws'
+  wsUrl: '/ws'
 };

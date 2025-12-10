@@ -65,6 +65,78 @@
           </span>
         </div>
 
+        <div class="form-row">
+          <div class="form-group">
+            <label for="defaultSprintLength">Default Sprint Length (weeks)</label>
+            <input
+              type="number"
+              id="defaultSprintLength"
+              formControlName="defaultSprintLength"
+              min="1"
+              max="4"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="timezone">Timezone</label>
+            <input
+              type="text"
+              id="timezone"
+              formControlName="timezone"
+              placeholder="UTC"
+            />
+          </div>
+        </div>
+
+        <hr class="form-divider"/>
+        <h3 class="form-section-title">Team Assignment (Optional)</h3>
+
+        <div class="form-group">
+          <label for="productOwnerId">Product Owner</label>
+          <select id="productOwnerId" formControlName="productOwnerId" class="form-select">
+            <option [ngValue]="null">-- Select Product Owner --</option>
+            <option *ngFor="let po of productOwners" [ngValue]="po.id">
+              {{ po.firstName }} {{ po.lastName }} ({{ po.email }})
+            </option>
+          </select>
+          <small class="form-hint">Assign a Product Owner to this project</small>
+        </div>
+
+        <div class="form-group">
+          <label for="scrumMasterId">Scrum Master</label>
+          <select id="scrumMasterId" formControlName="scrumMasterId" class="form-select">
+            <option [ngValue]="null">-- Select Scrum Master --</option>
+            <option *ngFor="let sm of scrumMasters" [ngValue]="sm.id">
+              {{ sm.firstName }} {{ sm.lastName }} ({{ sm.email }})
+            </option>
+          </select>
+          <small class="form-hint">Assign a Scrum Master to this project</small>
+        </div>
+
+        <div class="form-group">
+          <label>Developers</label>
+          <div class="checkbox-list">
+            <div class="checkbox-item" *ngFor="let dev of developers">
+              <input
+                type="checkbox"
+                [id]="'dev-' + dev.id"
+                [checked]="isDeveloperSelected(dev.id)"
+                (change)="toggleDeveloper(dev.id)"
+              />
+              <label [for]="'dev-' + dev.id">
+                {{ dev.firstName }} {{ dev.lastName }} ({{ dev.email }})
+              </label>
+            </div>
+            <div *ngIf="developers.length === 0" class="empty-list">
+              No developers available
+            </div>
+          </div>
+          <small class="form-hint">Select one or more developers for the project team</small>
+          <div class="selected-count" *ngIf="selectedDevelopers.length > 0">
+            {{ selectedDevelopers.length }} developer(s) selected
+          </div>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn-secondary" (click)="toggleCreateForm()">Cancel</button>
           <button type="submit" class="btn-primary" [disabled]="createProjectForm.invalid || loading">
@@ -106,16 +178,46 @@
           <div class="project-header">
             <h3>{{ project.name }}</h3>
             <span class="project-id">#{{ project.id }}</span>
+            <span class="status-badge" [class]="'status-' + project.status?.toLowerCase()">
+              {{ project.status }}
+            </span>
           </div>
           <p class="project-description">{{ project.description }}</p>
+
+          <!-- Team Information -->
+          <div class="team-info" *ngIf="project.team">
+            <h4 class="team-title">Team</h4>
+            <div class="team-members">
+              <div class="team-member" *ngIf="project.team.productOwner">
+                <span class="role-badge po">PO</span>
+                <span class="member-name">{{ project.team.productOwner.firstName }} {{ project.team.productOwner.lastName }}</span>
+              </div>
+              <div class="team-member" *ngIf="project.team.scrumMaster">
+                <span class="role-badge sm">SM</span>
+                <span class="member-name">{{ project.team.scrumMaster.firstName }} {{ project.team.scrumMaster.lastName }}</span>
+              </div>
+              <div class="team-member" *ngIf="project.team.developers && project.team.developers.length > 0">
+                <span class="role-badge dev">DEV</span>
+                <span class="member-count">{{ project.team.developers.length }} developer(s)</span>
+              </div>
+            </div>
+          </div>
+          <div class="no-team" *ngIf="!project.team">
+            <span class="info-text">No team assigned</span>
+          </div>
+
           <div class="project-meta">
+            <span class="meta-item">
+              <span class="meta-label">Sprint Length:</span>
+              <span class="meta-value">{{ project.defaultSprintLength }} weeks</span>
+            </span>
+            <span class="meta-item">
+              <span class="meta-label">Timezone:</span>
+              <span class="meta-value">{{ project.timezone }}</span>
+            </span>
             <span class="meta-item">
               <span class="meta-label">Created:</span>
               <span class="meta-value">{{ project.createdAt | date:'mediumDate' }}</span>
-            </span>
-            <span class="meta-item" *ngIf="project.organizationId">
-              <span class="meta-label">Org ID:</span>
-              <span class="meta-value">{{ project.organizationId }}</span>
             </span>
           </div>
           <div class="project-actions">

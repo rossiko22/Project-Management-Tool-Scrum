@@ -3,7 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
-import { Project } from '../../models/project.model';
+import { UserService } from '../../services/user.service';
+import { Project, CreateProjectRequest } from '../../models/project.model';
+import { User } from '../../models/user.model';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-projects',
@@ -15,27 +18,38 @@ import { Project } from '../../models/project.model';
 export class ProjectsComponent implements OnInit {
   projects: Project[] = [];
   filteredProjects: Project[] = [];
+  users: User[] = [];
+  productOwners: User[] = [];
+  scrumMasters: User[] = [];
+  developers: User[] = [];
   loading = false;
   showCreateForm = false;
   createProjectForm: FormGroup;
+  selectedDevelopers: number[] = [];
   error = '';
   success = '';
   searchTerm = '';
 
   constructor(
     private projectService: ProjectService,
+    private userService: UserService,
     private formBuilder: FormBuilder,
     private router: Router
   ) {
     this.createProjectForm = this.formBuilder.group({
       name: ['', Validators.required],
       description: ['', Validators.required],
-      organizationId: [1, Validators.required] // Default to 1 for now
+      organizationId: [1, Validators.required],
+      defaultSprintLength: [2],
+      timezone: ['UTC'],
+      productOwnerId: [null],
+      scrumMasterId: [null]
     });
   }
 
   ngOnInit(): void {
     this.loadProjects();
+    this.loadUsers();
   }
 
   loadProjects(): void {
@@ -51,6 +65,21 @@ export class ProjectsComponent implements OnInit {
         this.error = 'Failed to load projects';
         this.loading = false;
         console.error(error);
+      }
+    });
+  }
+
+  loadUsers(): void {
+    // Load all users and categorize by role
+    this.userService.getAllUsers().subscribe({
+      next: (users) => {
+        this.users = users;
+        this.productOwners = users.filter(u => u.roles.includes('PRODUCT_OWNER'));
+        this.scrumMasters = users.filter(u => u.roles.includes('SCRUM_MASTER'));
+        this.developers = users.filter(u => u.roles.includes('DEVELOPER'));
+      },
+      error: (error) => {
+        console.error('Failed to load users', error);
       }
     });
   }
@@ -72,10 +101,28 @@ export class ProjectsComponent implements OnInit {
     this.showCreateForm = !this.showCreateForm;
     if (!this.showCreateForm) {
       this.createProjectForm.reset();
-      this.createProjectForm.patchValue({ organizationId: 1 });
+      this.createProjectForm.patchValue({
+        organizationId: 1,
+        defaultSprintLength: 2,
+        timezone: 'UTC'
+      });
+      this.selectedDevelopers = [];
       this.error = '';
       this.success = '';
     }
+  }
+
+  toggleDeveloper(developerId: number): void {
+    const index = this.selectedDevelopers.indexOf(developerId);
+    if (index > -1) {
+      this.selectedDevelopers.splice(index, 1);
+    } else {
+      this.selectedDevelopers.push(developerId);
+    }
+  }
+
+  isDeveloperSelected(developerId: number): boolean {
+    return this.selectedDevelopers.includes(developerId);
   }
 
   onSubmit(): void {
@@ -87,13 +134,23 @@ export class ProjectsComponent implements OnInit {
     this.error = '';
     this.success = '';
 
-    const projectData = this.createProjectForm.value;
+    const request: CreateProjectRequest = {
+      ...this.createProjectForm.value,
+      developerIds: this.selectedDevelopers.length > 0 ? this.selectedDevelopers : undefined
+    };
 
-    this.projectService.createProject(projectData).subscribe({
+    console.log('Creating project with request:', request);
+
+    this.projectService.createProject(request).subscribe({
       next: (project) => {
         this.success = `Project "${project.name}" created successfully!`;
         this.createProjectForm.reset();
-        this.createProjectForm.patchValue({ organizationId: 1 });
+        this.createProjectForm.patchValue({
+          organizationId: 1,
+          defaultSprintLength: 2,
+          timezone: 'UTC'
+        });
+        this.selectedDevelopers = [];
         this.showCreateForm = false;
         this.loadProjects();
         this.loading = false;

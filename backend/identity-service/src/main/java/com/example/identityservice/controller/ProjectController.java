@@ -1,16 +1,23 @@
 package com.example.identityservice.controller;
 
+import com.example.identityservice.dto.AssignTeamRequest;
+import com.example.identityservice.dto.CreateProjectRequest;
+import com.example.identityservice.dto.ProjectDto;
 import com.example.identityservice.entity.Project;
+import com.example.identityservice.security.JwtUtil;
 import com.example.identityservice.service.ProjectService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/projects")
@@ -18,47 +25,143 @@ import java.util.Map;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final JwtUtil jwtUtil;
+
+    private String getTokenFromRequest(HttpServletRequest request) {
+        // Try to get JWT from cookie
+        if (request.getCookies() != null) {
+            Cookie jwtCookie = Arrays.stream(request.getCookies())
+                    .filter(cookie -> "jwt".equals(cookie.getName()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (jwtCookie != null) {
+                return jwtCookie.getValue();
+            }
+        }
+
+        // Fallback to Authorization header
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+
+        throw new RuntimeException("Unable to extract token from request");
+    }
+
+    private Long getUserIdFromRequest(HttpServletRequest request) {
+        String token = getTokenFromRequest(request);
+        return jwtUtil.extractUserId(token);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Long> getProjectIdsFromRequest(HttpServletRequest request) {
+        String token = getTokenFromRequest(request);
+        Object projectIds = jwtUtil.extractAllClaims(token).get("projectIds");
+        if (projectIds instanceof List) {
+            return ((List<?>) projectIds).stream()
+                    .map(id -> {
+                        if (id instanceof Integer) {
+                            return ((Integer) id).longValue();
+                        } else if (id instanceof Long) {
+                            return (Long) id;
+                        }
+                        return null;
+                    })
+                    .filter(id -> id != null)
+                    .collect(Collectors.toList());
+        }
+        return List.of();
+    }
+
+    private boolean hasAccessToProject(HttpServletRequest request, Long projectId, Authentication authentication) {
+        // Organization admins have access to all projects
+        if (authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ORGANIZATION_ADMIN"))) {
+            return true;
+        }
+
+        // Check if project ID is in user's authorized project list
+        List<Long> userProjectIds = getProjectIdsFromRequest(request);
+        return userProjectIds.contains(projectId);
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
-    public ResponseEntity<Project> createProject(
-            @RequestBody Map<String, Object> request,
-            Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        Long userId = Long.parseLong(userDetails.getUsername());
+    public ResponseEntity<ProjectDto> createProject(
+            @Valid @RequestBody CreateProjectRequest request,
+            HttpServletRequest httpRequest) {
 
-        String name = (String) request.get("name");
-        String description = (String) request.get("description");
-        Long organizationId = Long.parseLong(request.get("organizationId").toString());
-
-        Project project = projectService.createProject(name, description, organizationId, userId);
-        return ResponseEntity.ok(project);
+        Long userId = getUserIdFromRequest(httpRequest);
+        Project project = projectService.createProjectWithTeam(request, userId);
+        return ResponseEntity.ok(ProjectDto.fromEntity(project));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER')")
-    public ResponseEntity<Project> updateProject(
+    @PostMapping("/{id}/assign-team")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ProjectDto> assignTeam(
             @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
-        String name = request.get("name");
-        String description = request.get("description");
+            @Valid @RequestBody AssignTeamRequest request,
+            HttpServletRequest httpRequest) {
 
-        Project project = projectService.updateProject(id, name, description);
-        return ResponseEntity.ok(project);
+        Long userId = getUserIdFromRequest(httpRequest);
+        Project project = projectService.assignTeam(
+                id,
+                request.getProductOwnerId(),
+                request.getScrumMasterId(),
+                request.getDeveloperIds(),
+                userId
+        );
+        return ResponseEntity.ok(ProjectDto.fromEntity(project));
     }
 
     @GetMapping
-    public ResponseEntity<List<Project>> getAllProjects() {
-        return ResponseEntity.ok(projectService.getAllProjects());
+    public ResponseEntity<List<ProjectDto>> getAllProjects(
+            HttpServletRequest httpRequest,
+            Authentication authentication) {
+
+        List<ProjectDto> projects;
+
+        // Organization admins can see all projects
+        if (authentication.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ROLE_ORGANIZATION_ADMIN"))) {
+            projects = projectService.getAllProjects()
+                    .stream()
+                    .map(ProjectDto::fromEntity)
+                    .collect(Collectors.toList());
+        } else {
+            // Other users can only see their assigned projects
+            List<Long> projectIds = getProjectIdsFromRequest(httpRequest);
+            projects = projectService.getProjectsByIds(projectIds)
+                    .stream()
+                    .map(ProjectDto::fromEntity)
+                    .collect(Collectors.toList());
+        }
+
+        return ResponseEntity.ok(projects);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Project> getProjectById(@PathVariable Long id) {
-        return ResponseEntity.ok(projectService.getProjectById(id));
+    public ResponseEntity<ProjectDto> getProjectById(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest,
+            Authentication authentication) {
+
+        // Check if user has access to this project
+        if (!hasAccessToProject(httpRequest, id, authentication)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        Project project = projectService.getProjectById(id);
+        return ResponseEntity.ok(ProjectDto.fromEntity(project));
     }
 
     @GetMapping("/organization/{organizationId}")
-    public ResponseEntity<List<Project>> getProjectsByOrganization(@PathVariable Long organizationId) {
-        return ResponseEntity.ok(projectService.getProjectsByOrganization(organizationId));
+    public ResponseEntity<List<ProjectDto>> getProjectsByOrganization(@PathVariable Long organizationId) {
+        List<ProjectDto> projects = projectService.getProjectsByOrganization(organizationId)
+                .stream()
+                .map(ProjectDto::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(projects);
     }
 }

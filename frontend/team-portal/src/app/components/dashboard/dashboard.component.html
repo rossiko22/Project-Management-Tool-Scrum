@@ -1,30 +1,192 @@
 <div class="dashboard-container">
-  <header>
-    <h1>Team Dashboard</h1>
-    <nav>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/sprints" routerLinkActive="active">Sprints</a>
-      <a routerLink="/tasks" routerLinkActive="active">Tasks</a>
-      <a routerLink="/backlog" routerLinkActive="active">Backlog</a>
-    </nav>
-  </header>
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading dashboard...</p>
+  </div>
 
-  <div class="dashboard-content">
-    <h2>Welcome to Team Portal</h2>
-    <p>Manage your sprints, tasks, and backlog items.</p>
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-message">
+    <p>{{ error }}</p>
+    <button (click)="loadDashboardData()" class="btn-retry">Retry</button>
+  </div>
 
-    <div class="quick-links">
-      <div class="card" routerLink="/sprints">
-        <h3>Active Sprints</h3>
-        <p>View and manage current sprints</p>
+  <!-- Dashboard Content -->
+  <div *ngIf="!loading && !error" class="dashboard-content">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+      <div class="header-left">
+        <h1>Dashboard</h1>
+        <p class="subtitle" *ngIf="selectedProject">Welcome back, {{ authService.currentUserValue?.firstName }}! - {{ selectedProject.name }}</p>
+        <p class="subtitle" *ngIf="!selectedProject">Welcome back, {{ authService.currentUserValue?.firstName }}!</p>
       </div>
-      <div class="card" routerLink="/tasks">
-        <h3>My Tasks</h3>
-        <p>Track your assigned tasks</p>
+    </div>
+
+    <!-- Current Sprint Summary -->
+    <div class="sprint-summary card">
+      <div class="card-header">
+        <h2>Current Sprint</h2>
+        <span class="sprint-status" [class.active]="currentSprint?.status === 'ACTIVE'">
+          {{ currentSprint?.status || 'No Active Sprint' }}
+        </span>
       </div>
-      <div class="card" routerLink="/backlog">
-        <h3>Product Backlog</h3>
-        <p>Manage backlog items</p>
+
+      <div *ngIf="currentSprint" class="sprint-details">
+        <div class="sprint-info">
+          <h3>{{ currentSprint.name }}</h3>
+          <p class="sprint-goal">{{ currentSprint.goal }}</p>
+          <div class="sprint-dates">
+            <span>{{ currentSprint.startDate | date:'MMM d' }} - {{ currentSprint.endDate | date:'MMM d, yyyy' }}</span>
+            <span class="days-remaining">{{ stats.daysRemaining }} days remaining</span>
+          </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span>Progress</span>
+            <span>{{ stats.progressPercentage }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="stats.progressPercentage"></div>
+          </div>
+          <div class="progress-stats">
+            <span>{{ stats.done }} / {{ stats.done + stats.inProgress + stats.review + stats.toDo }} tasks completed</span>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="!currentSprint" class="no-sprint">
+        <p>No active sprint. Start a sprint to begin tracking progress.</p>
+        <a routerLink="/sprints" class="btn-primary">Go to Sprints</a>
+      </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon todo">📋</div>
+        <div class="stat-content">
+          <h4>To Do</h4>
+          <p class="stat-number">{{ stats.toDo }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon in-progress">🔄</div>
+        <div class="stat-content">
+          <h4>In Progress</h4>
+          <p class="stat-number">{{ stats.inProgress }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon review">👀</div>
+        <div class="stat-content">
+          <h4>In Review</h4>
+          <p class="stat-number">{{ stats.review }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon done">✅</div>
+        <div class="stat-content">
+          <h4>Done</h4>
+          <p class="stat-number">{{ stats.done }}</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon impediments">🚧</div>
+        <div class="stat-content">
+          <h4>Open Impediments</h4>
+          <p class="stat-number">{{ stats.openImpediments }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+      <!-- My Tasks -->
+      <div class="card tasks-card">
+        <div class="card-header">
+          <h3>My Tasks</h3>
+          <a routerLink="/board" class="link-view-all">View All</a>
+        </div>
+        <div class="card-body">
+          <div *ngIf="getMyTasks().length === 0" class="empty-state">
+            <p>No tasks assigned to you</p>
+          </div>
+          <div *ngIf="getMyTasks().length > 0" class="task-list">
+            <div *ngFor="let task of getMyTasks().slice(0, 5)" class="task-item">
+              <div class="task-status" [class]="task.status.toLowerCase().replace('_', '-')"></div>
+              <div class="task-info">
+                <h4>{{ task.title }}</h4>
+                <p class="task-desc">{{ task.description }}</p>
+                <span class="task-status-badge" [class]="task.status.toLowerCase().replace('_', '-')">
+                  {{ task.status.replace('_', ' ') }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity / Impediments -->
+      <div class="card impediments-card">
+        <div class="card-header">
+          <h3>Open Impediments</h3>
+          <a routerLink="/impediments" class="link-view-all">View All</a>
+        </div>
+        <div class="card-body">
+          <div *ngIf="getOpenImpediments().length === 0" class="empty-state">
+            <p>No open impediments</p>
+          </div>
+          <div *ngIf="getOpenImpediments().length > 0" class="impediment-list">
+            <div *ngFor="let impediment of getOpenImpediments().slice(0, 5)"
+                 class="impediment-item">
+              <div class="impediment-header">
+                <h4>{{ impediment.title }}</h4>
+                <span class="status-badge" [class]="impediment.status.toLowerCase().replace('_', '-')">
+                  {{ impediment.status.replace('_', ' ') }}
+                </span>
+              </div>
+              <p class="impediment-desc">{{ impediment.description }}</p>
+              <span class="impediment-date">Reported {{ impediment.reportedAt | date:'MMM d' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions card">
+      <h3>Quick Actions</h3>
+      <div class="action-buttons">
+        <a routerLink="/backlog" class="action-btn">
+          <span class="icon">📋</span>
+          <span>View Backlog</span>
+        </a>
+        <a routerLink="/board" class="action-btn">
+          <span class="icon">📌</span>
+          <span>Sprint Board</span>
+        </a>
+        <a routerLink="/sprints" class="action-btn">
+          <span class="icon">🏃</span>
+          <span>Manage Sprints</span>
+        </a>
+        <a routerLink="/reports" class="action-btn">
+          <span class="icon">📈</span>
+          <span>View Reports</span>
+        </a>
+        <a routerLink="/impediments" class="action-btn">
+          <span class="icon">🚧</span>
+          <span>Report Impediment</span>
+        </a>
+        <a routerLink="/scrum-events" class="action-btn">
+          <span class="icon">📝</span>
+          <span>Scrum Events</span>
+        </a>
       </div>
     </div>
   </div>

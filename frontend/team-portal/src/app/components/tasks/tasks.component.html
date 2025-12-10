@@ -1,16 +1,247 @@
 <div class="tasks-container">
-  <header>
-    <h1>Tasks</h1>
-    <nav>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/sprints" routerLinkActive="active">Sprints</a>
-      <a routerLink="/tasks" routerLinkActive="active">Tasks</a>
-      <a routerLink="/backlog" routerLinkActive="active">Backlog</a>
-    </nav>
-  </header>
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading tasks...</p>
+  </div>
 
-  <div class="tasks-content">
-    <h2>Task Management</h2>
-    <p>View and manage your assigned tasks</p>
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="alert alert-danger">
+    {{ error }}
+    <button class="btn btn-sm btn-primary mt-md" (click)="loadCurrentSprint()">Retry</button>
+  </div>
+
+  <!-- Main Content -->
+  <div *ngIf="!loading && !error" class="tasks-content">
+    <!-- Header -->
+    <div class="tasks-header">
+      <div>
+        <h1>Task Management</h1>
+        <p class="subtitle" *ngIf="selectedProject">{{ selectedProject.name }} - View and manage all sprint tasks</p>
+        <p class="subtitle" *ngIf="!selectedProject">Select a project to view tasks</p>
+      </div>
+    </div>
+
+    <!-- No Sprint State -->
+    <div *ngIf="!currentSprint" class="empty-state">
+      <div class="empty-icon">📋</div>
+      <h3>No Active Sprint</h3>
+      <p>There is no active sprint for this project. Start a sprint to manage tasks.</p>
+      <a routerLink="/sprints" class="btn btn-primary">Go to Sprints</a>
+    </div>
+
+    <!-- Sprint Active -->
+    <div *ngIf="currentSprint" class="sprint-info">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Tasks</div>
+          <div class="stat-value">{{ getTaskStats().total }}</div>
+        </div>
+        <div class="stat-card status-todo">
+          <div class="stat-label">To Do</div>
+          <div class="stat-value">{{ getTaskStats().toDo }}</div>
+        </div>
+        <div class="stat-card status-in-progress">
+          <div class="stat-label">In Progress</div>
+          <div class="stat-value">{{ getTaskStats().inProgress }}</div>
+        </div>
+        <div class="stat-card status-review">
+          <div class="stat-label">Review</div>
+          <div class="stat-value">{{ getTaskStats().review }}</div>
+        </div>
+        <div class="stat-card status-done">
+          <div class="stat-label">Done</div>
+          <div class="stat-value">{{ getTaskStats().done }}</div>
+        </div>
+        <div class="stat-card status-mine">
+          <div class="stat-label">My Tasks</div>
+          <div class="stat-value">{{ getTaskStats().myTasks }}</div>
+        </div>
+      </div>
+
+      <!-- Filters and Search -->
+      <div class="filters-section card">
+        <div class="filters-row">
+          <!-- Search -->
+          <div class="search-box">
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Search tasks..."
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="applyFilters()">
+          </div>
+
+          <!-- Filter by Status -->
+          <select class="form-control" [(ngModel)]="filterStatus" (ngModelChange)="applyFilters()">
+            <option value="all">All Statuses</option>
+            <option value="TO_DO">To Do</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="REVIEW">Review</option>
+            <option value="DONE">Done</option>
+          </select>
+
+          <!-- Filter by Assignee -->
+          <select class="form-control" [(ngModel)]="filterAssignee" (ngModelChange)="applyFilters()">
+            <option value="all">All Tasks</option>
+            <option value="mine">My Tasks</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+
+          <!-- Sort -->
+          <select class="form-control" [(ngModel)]="sortBy" (ngModelChange)="applyFilters()">
+            <option value="status">Sort by Status</option>
+            <option value="title">Sort by Title</option>
+            <option value="hours">Sort by Hours</option>
+            <option value="assignee">Sort by Assignee</option>
+          </select>
+        </div>
+
+        <div class="results-count">
+          Showing {{ filteredTasks.length }} of {{ tasks.length }} tasks
+        </div>
+      </div>
+
+      <!-- Tasks Table -->
+      <div class="card tasks-table-container">
+        <div *ngIf="filteredTasks.length === 0" class="empty-state">
+          <div class="empty-icon">✓</div>
+          <h3>No Tasks Found</h3>
+          <p>Try adjusting your filters or search query.</p>
+        </div>
+
+        <table *ngIf="filteredTasks.length > 0" class="tasks-table">
+          <thead>
+            <tr>
+              <th (click)="changeSortBy('title')" class="sortable">
+                Task
+                <span class="sort-indicator" *ngIf="sortBy === 'title'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="changeSortBy('status')" class="sortable">
+                Status
+                <span class="sort-indicator" *ngIf="sortBy === 'status'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="changeSortBy('assignee')" class="sortable">
+                Assignee
+                <span class="sort-indicator" *ngIf="sortBy === 'assignee'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th (click)="changeSortBy('hours')" class="sortable">
+                Hours
+                <span class="sort-indicator" *ngIf="sortBy === 'hours'">
+                  {{ sortDirection === 'asc' ? '↑' : '↓' }}
+                </span>
+              </th>
+              <th class="actions-column">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let task of filteredTasks" class="task-row">
+              <td class="task-title-cell">
+                <div class="task-title">{{ task.title }}</div>
+                <div *ngIf="task.description" class="task-description">{{ task.description }}</div>
+              </td>
+              <td>
+                <select
+                  class="status-select"
+                  [ngClass]="getStatusClass(task.status)"
+                  [(ngModel)]="task.status"
+                  (ngModelChange)="updateTaskStatus(task, $event)">
+                  <option *ngFor="let status of statusOptions" [value]="status">
+                    {{ getStatusLabel(status) }}
+                  </option>
+                </select>
+              </td>
+              <td>
+                <div *ngIf="task.assignee" class="assignee-info">
+                  <div class="avatar">
+                    {{ task.assignee.firstName.charAt(0) }}{{ task.assignee.lastName.charAt(0) }}
+                  </div>
+                  <span>{{ task.assignee.firstName }} {{ task.assignee.lastName }}</span>
+                </div>
+                <span *ngIf="!task.assignee" class="text-muted">Unassigned</span>
+              </td>
+              <td>
+                <span class="hours-badge">{{ task.estimatedHours || 0 }}h</span>
+              </td>
+              <td class="actions-cell">
+                <button class="btn btn-sm btn-secondary" (click)="openTaskModal(task)" title="Edit">
+                  ✏️
+                </button>
+                <button class="btn btn-sm btn-danger" (click)="deleteTask(task)" title="Delete">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Task Modal -->
+  <div *ngIf="showTaskModal" class="modal-overlay" (click)="closeTaskModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>{{ isEditing ? 'Edit Task' : 'Create Task' }}</h3>
+        <button class="btn btn-sm btn-secondary" (click)="closeTaskModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input
+            type="text"
+            class="form-control"
+            [(ngModel)]="taskForm.title"
+            placeholder="Enter task title"
+            required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea
+            class="form-control"
+            [(ngModel)]="taskForm.description"
+            placeholder="Enter task description"
+            rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estimated Hours</label>
+          <input
+            type="number"
+            class="form-control"
+            [(ngModel)]="taskForm.estimatedHours"
+            min="0"
+            step="0.5">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <select class="form-control" [(ngModel)]="taskForm.status">
+            <option *ngFor="let status of statusOptions" [value]="status">
+              {{ getStatusLabel(status) }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="closeTaskModal()">Cancel</button>
+        <button
+          class="btn btn-primary"
+          (click)="saveTask()"
+          [disabled]="!taskForm.title.trim()">
+          {{ isEditing ? 'Save Changes' : 'Create Task' }}
+        </button>
+      </div>
+    </div>
   </div>
 </div>

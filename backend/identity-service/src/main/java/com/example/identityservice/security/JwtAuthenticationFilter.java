@@ -2,6 +2,7 @@ package com.example.identityservice.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 
 @Component
@@ -35,14 +37,28 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain chain)
             throws ServletException, IOException {
 
-        final String header = request.getHeader("Authorization");
+        String token = null;
 
-        if (header == null || !header.startsWith("Bearer ")) {
+        // First try to get token from Authorization header
+        final String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.substring(7);
+        }
+
+        // If not in header, try to get from cookie
+        if (token == null && request.getCookies() != null) {
+            token = Arrays.stream(request.getCookies())
+                    .filter(cookie -> "jwt".equals(cookie.getName()))
+                    .findFirst()
+                    .map(Cookie::getValue)
+                    .orElse(null);
+        }
+
+        // If no token found, continue without authentication
+        if (token == null) {
             chain.doFilter(request, response);
             return;
         }
-
-        String token = header.substring(7);
 
         String email;
         try {

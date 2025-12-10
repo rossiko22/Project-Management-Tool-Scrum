@@ -1,16 +1,246 @@
 <div class="backlog-container">
-  <header>
-    <h1>Product Backlog</h1>
-    <nav>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/sprints" routerLinkActive="active">Sprints</a>
-      <a routerLink="/tasks" routerLinkActive="active">Tasks</a>
-      <a routerLink="/backlog" routerLinkActive="active">Backlog</a>
-    </nav>
-  </header>
+  <!-- Header Section -->
+  <div class="backlog-header">
+    <div class="header-left">
+      <h1>Product Backlog</h1>
+      <p class="subtitle" *ngIf="selectedProject">{{ selectedProject.name }} - Manage and prioritize your backlog items</p>
+      <p class="subtitle" *ngIf="!selectedProject">Select a project to manage backlog items</p>
+    </div>
+    <div class="header-right">
+      <button *ngIf="canCreate()" (click)="openCreateModal()" class="btn-primary">
+        <span class="icon">➕</span>
+        Create Item
+      </button>
+    </div>
+  </div>
 
-  <div class="backlog-content">
-    <h2>Backlog Management</h2>
-    <p>Manage and prioritize product backlog items</p>
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-banner">
+    <span>⚠️ {{ error }}</span>
+    <button (click)="error = null" class="btn-close">✕</button>
+  </div>
+
+  <!-- Filters and Search -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input
+        type="text"
+        [(ngModel)]="searchTerm"
+        (input)="onSearchChange()"
+        placeholder="Search backlog items..."
+        class="search-input"
+      />
+    </div>
+    <div class="filter-group">
+      <select [(ngModel)]="filterType" (change)="onFilterChange()" class="filter-select">
+        <option value="ALL">All Types</option>
+        <option value="STORY">Stories</option>
+        <option value="EPIC">Epics</option>
+        <option value="BUG">Bugs</option>
+        <option value="TECHNICAL_TASK">Technical Tasks</option>
+      </select>
+      <select [(ngModel)]="filterStatus" (change)="onFilterChange()" class="filter-select">
+        <option value="ALL">All Statuses</option>
+        <option value="BACKLOG">Backlog</option>
+        <option value="SPRINT_READY">Sprint Ready</option>
+        <option value="IN_SPRINT">In Sprint</option>
+        <option value="DONE">Done</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Loading backlog...</p>
+  </div>
+
+  <!-- Backlog Items List -->
+  <div *ngIf="!loading" class="backlog-content">
+    <div *ngIf="filteredItems.length === 0" class="empty-state">
+      <div class="empty-icon">📋</div>
+      <h3>No backlog items found</h3>
+      <p *ngIf="canCreate()">Create your first backlog item to get started</p>
+      <button *ngIf="canCreate()" (click)="openCreateModal()" class="btn-primary">Create Item</button>
+    </div>
+
+    <div *ngIf="filteredItems.length > 0" class="backlog-list-container">
+      <div class="list-header">
+        <span class="col-priority">#</span>
+        <span class="col-type">Type</span>
+        <span class="col-title">Title</span>
+        <span class="col-points">Points</span>
+        <span class="col-status">Status</span>
+        <span class="col-actions">Actions</span>
+      </div>
+
+      <div
+        cdkDropList
+        [cdkDropListDisabled]="!canReorder()"
+        (cdkDropListDropped)="onDrop($event)"
+        class="backlog-list"
+      >
+        <div
+          *ngFor="let item of filteredItems; let i = index"
+          cdkDrag
+          [cdkDragDisabled]="!canReorder()"
+          class="backlog-item"
+          [class.draggable]="canReorder()"
+        >
+          <!-- Drag Handle -->
+          <div *ngIf="canReorder()" class="drag-handle" cdkDragHandle>
+            <span>⋮⋮</span>
+          </div>
+
+          <!-- Priority Number -->
+          <div class="item-priority">
+            {{ i + 1 }}
+          </div>
+
+          <!-- Type Badge -->
+          <div class="item-type">
+            <span class="type-badge" [class]="getItemTypeColor(item.type)">
+              <span class="type-icon">{{ getItemTypeIcon(item.type) }}</span>
+              {{ item.type.replace('_', ' ') }}
+            </span>
+          </div>
+
+          <!-- Title and Description -->
+          <div class="item-content" (click)="openEditModal(item)">
+            <h4 class="item-title">{{ item.title }}</h4>
+            <p *ngIf="item.description" class="item-description">{{ item.description }}</p>
+            <div *ngIf="item.acceptanceCriteria" class="acceptance-criteria">
+              <span class="label">AC:</span> {{ item.acceptanceCriteria }}
+            </div>
+          </div>
+
+          <!-- Story Points -->
+          <div class="item-points">
+            <div *ngIf="item.storyPoints" class="points-badge">
+              {{ item.storyPoints }}
+            </div>
+            <button *ngIf="!item.storyPoints && canEdit(item)" (click)="estimateItem(item, 5)" class="btn-estimate" title="Estimate">
+              📊
+            </button>
+          </div>
+
+          <!-- Status -->
+          <div class="item-status">
+            <span class="status-badge" [class]="item.status.toLowerCase().replace('_', '-')">
+              {{ item.status.replace('_', ' ') }}
+            </span>
+          </div>
+
+          <!-- Actions -->
+          <div class="item-actions">
+            <button *ngIf="canEdit(item)" (click)="openEditModal(item)" class="btn-icon" title="Edit">
+              ✏️
+            </button>
+            <button *ngIf="canDelete(item)" (click)="deleteItem(item)" class="btn-icon btn-danger" title="Delete">
+              🗑️
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create/Edit Modal -->
+  <div *ngIf="showModal" class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ isEditMode ? 'Edit' : 'Create' }} Backlog Item</h2>
+        <button (click)="closeModal()" class="btn-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Type *</label>
+          <select [(ngModel)]="currentItem.type" class="form-control" [disabled]="isEditMode">
+            <option *ngFor="let type of getAvailableTypes()" [value]="type">
+              {{ getItemTypeIcon(type) }} {{ type.replace('_', ' ') }}
+            </option>
+          </select>
+          <small class="form-hint">
+            <span *ngIf="authService.hasRole('PRODUCT_OWNER')">Product Owners can create all types</span>
+            <span *ngIf="!authService.hasRole('PRODUCT_OWNER')">Developers can create Bugs and Technical Tasks</span>
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Title *</label>
+          <input
+            type="text"
+            [(ngModel)]="currentItem.title"
+            class="form-control"
+            placeholder="Enter item title"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea
+            [(ngModel)]="currentItem.description"
+            class="form-control"
+            rows="4"
+            placeholder="Describe the item in detail"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Acceptance Criteria</label>
+          <textarea
+            [(ngModel)]="currentItem.acceptanceCriteria"
+            class="form-control"
+            rows="3"
+            placeholder="Enter acceptance criteria (Given-When-Then format)"
+          ></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Story Points</label>
+            <select [(ngModel)]="currentItem.storyPoints" class="form-control">
+              <option [ngValue]="undefined">Not estimated</option>
+              <option [value]="1">1</option>
+              <option [value]="2">2</option>
+              <option [value]="3">3</option>
+              <option [value]="5">5</option>
+              <option [value]="8">8</option>
+              <option [value]="13">13</option>
+              <option [value]="21">21</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Priority</label>
+            <select [(ngModel)]="currentItem.priority" class="form-control">
+              <option [value]="0">Low</option>
+              <option [value]="1">Medium</option>
+              <option [value]="2">High</option>
+              <option [value]="3">Critical</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select [(ngModel)]="currentItem.status" class="form-control">
+              <option value="BACKLOG">Backlog</option>
+              <option value="SPRINT_READY">Sprint Ready</option>
+              <option value="IN_SPRINT">In Sprint</option>
+              <option value="DONE">Done</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button (click)="closeModal()" class="btn-secondary">Cancel</button>
+        <button (click)="saveItem()" class="btn-primary" [disabled]="!currentItem.title">
+          {{ isEditMode ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </div>
   </div>
 </div>

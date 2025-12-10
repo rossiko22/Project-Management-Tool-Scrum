@@ -46,6 +46,83 @@ public class TeamService {
     }
 
     @Transactional
+    public Team createTeamWithMembers(String name, String description, Long projectId,
+                                      Long productOwnerId, Long scrumMasterId,
+                                      List<Long> developerIds, Long createdById) {
+        Team team = Team.builder()
+                .name(name)
+                .description(description)
+                .projectId(projectId)
+                .build();
+
+        // Assign Product Owner
+        if (productOwnerId != null) {
+            User productOwner = userRepository.findById(productOwnerId)
+                    .orElseThrow(() -> new RuntimeException("Product Owner not found"));
+            team.setProductOwner(productOwner);
+        }
+
+        // Assign Scrum Master
+        if (scrumMasterId != null) {
+            User scrumMaster = userRepository.findById(scrumMasterId)
+                    .orElseThrow(() -> new RuntimeException("Scrum Master not found"));
+            team.setScrumMaster(scrumMaster);
+        }
+
+        // Assign Developers
+        if (developerIds != null && !developerIds.isEmpty()) {
+            List<User> developers = userRepository.findAllById(developerIds);
+            team.getMembers().addAll(developers);
+        }
+
+        team = teamRepository.save(team);
+
+        // Publish team created event
+        TeamEvent event = TeamEvent.builder()
+                .teamId(team.getId())
+                .teamName(team.getName())
+                .projectId(projectId)
+                .action("CREATED")
+                .memberIds(team.getMembers().stream()
+                        .map(User::getId)
+                        .collect(Collectors.toList()))
+                .timestamp(Instant.now())
+                .performedBy(createdById)
+                .build();
+        eventPublisher.publishTeamEvent(event);
+
+        return team;
+    }
+
+    @Transactional
+    public Team setProductOwner(Long teamId, Long userId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new RuntimeException("Team not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        team.setProductOwner(user);
+        team = teamRepository.save(team);
+
+        return team;
+    }
+
+    @Transactional
+    public Team setScrumMaster(Long teamId, Long userId) {
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new RuntimeException("Team not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        team.setScrumMaster(user);
+        team = teamRepository.save(team);
+
+        return team;
+    }
+
+    @Transactional
     public Team addMember(Long teamId, Long userId, String role) {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new RuntimeException("Team not found"));

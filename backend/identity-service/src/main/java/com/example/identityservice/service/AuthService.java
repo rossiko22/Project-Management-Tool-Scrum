@@ -54,6 +54,8 @@ public class AuthService {
 
         String token = jwtUtil.generateToken(user, teamIds, projectIds);
 
+        System.out.println("JWT GENERATED: " + token);
+
         return LoginResponse.builder()
                 .token(token)
                 .type("Bearer")
