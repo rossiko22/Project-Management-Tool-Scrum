@@ -92,7 +92,7 @@
     CREATE INDEX idx_projects_status ON projects(status);
     CREATE INDEX idx_projects_organization ON projects(organization_id);
 
-    -- Insert default admin user (password: admin123, BCrypt encrypted with strength 10)
+    -- Insert default admin user (password: admin123, BCrypt encrypted with strengt 10)
     -- Password hash generated using BCrypt for 'admin123'
     INSERT INTO users (email, password_hash, first_name, last_name, status) VALUES
         ('admin@example.com', '$2a$10$POtSb1ys2BBOdd6UUKC37OhSqBWeojJ0NJ487ZxBCpltD0wbcboaO', 'System', 'Administrator', 'ACTIVE');
