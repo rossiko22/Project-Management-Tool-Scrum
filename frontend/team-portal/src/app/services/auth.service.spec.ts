@@ -13,13 +13,14 @@ describe('AuthService', () => {
     email: 'test@example.com',
     firstName: 'Test',
     lastName: 'User',
+    status: 'ACTIVE',
     roles: ['DEVELOPER']
   };
 
   const mockLoginResponse: LoginResponse = {
     token: 'test-jwt-token',
-    type: 'Bearer',
-    user: mockUser
+    user: mockUser,
+    expiresIn: 28800
   };
 
   beforeEach(() => {
@@ -93,31 +94,38 @@ describe('AuthService', () => {
     expect(service.token).toBeNull();
   });
 
-  it('should check if user has specific role', () => {
-    localStorage.setItem('current_user', JSON.stringify(mockUser));
-    // Need to create new instance to pick up localStorage
-    service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
+  it('should check if user has specific role', (done) => {
+    service.login({ email: 'test@example.com', password: 'password123' }).subscribe(() => {
+      expect(service.hasRole('DEVELOPER')).toBe(true);
+      expect(service.hasRole('SCRUM_MASTER')).toBe(false);
+      done();
+    });
 
-    expect(service.hasRole('DEVELOPER')).toBe(true);
-    expect(service.hasRole('SCRUM_MASTER')).toBe(false);
+    const req = httpMock.expectOne(`${environment.apiUrl}/auth/authenticate`);
+    req.flush(mockLoginResponse);
   });
 
-  it('should check if user is admin', () => {
-    const adminUser: User = {
-      ...mockUser,
-      roles: ['ORGANIZATION_ADMIN']
-    };
-    localStorage.setItem('current_user', JSON.stringify(adminUser));
-    service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
+  it('should check if user is admin', (done) => {
+    const adminUser: User = { ...mockUser, roles: ['ORGANIZATION_ADMIN'] };
+    const adminResponse: LoginResponse = { ...mockLoginResponse, user: adminUser };
 
-    expect(service.isAdmin()).toBe(true);
+    service.login({ email: 'admin@example.com', password: 'password123' }).subscribe(() => {
+      expect(service.isAdmin()).toBe(true);
+      done();
+    });
+
+    const req = httpMock.expectOne(`${environment.apiUrl}/auth/authenticate`);
+    req.flush(adminResponse);
   });
 
-  it('should return false for isAdmin when user is not admin', () => {
-    localStorage.setItem('current_user', JSON.stringify(mockUser));
-    service = new AuthService(TestBed.inject(HttpClientTestingModule) as any);
+  it('should return false for isAdmin when user is not admin', (done) => {
+    service.login({ email: 'test@example.com', password: 'password123' }).subscribe(() => {
+      expect(service.isAdmin()).toBe(false);
+      done();
+    });
 
-    expect(service.isAdmin()).toBe(false);
+    const req = httpMock.expectOne(`${environment.apiUrl}/auth/authenticate`);
+    req.flush(mockLoginResponse);
   });
 
   it('should emit currentUser changes on login', (done) => {

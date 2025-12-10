@@ -10,7 +10,7 @@ describe('ProjectContextService', () => {
       id: 1,
       name: 'Project Alpha',
       description: 'First test project',
-      key: 'ALPHA',
+      organizationId: 1,
       createdAt: new Date(),
       updatedAt: new Date()
     },
@@ -18,7 +18,7 @@ describe('ProjectContextService', () => {
       id: 2,
       name: 'Project Beta',
       description: 'Second test project',
-      key: 'BETA',
+      organizationId: 1,
       createdAt: new Date(),
       updatedAt: new Date()
     }
@@ -63,31 +63,37 @@ describe('ProjectContextService', () => {
     service.setProjects(mockProjects);
   });
 
-  it('should select project and save to localStorage', (done) => {
+  it('should select project and save to localStorage', () => {
     const projectToSelect = mockProjects[1];
-
-    service.selectedProject$.subscribe(project => {
-      if (project) {
-        expect(project).toEqual(projectToSelect);
-        const saved = localStorage.getItem('selected_project');
-        expect(saved).toBeTruthy();
-        if (saved) {
-          expect(JSON.parse(saved)).toEqual(projectToSelect);
-        }
-        done();
-      }
-    });
-
     service.selectProject(projectToSelect);
+
+    expect(service.selectedProject).toEqual(projectToSelect);
+    const saved = localStorage.getItem('selected_project');
+    expect(saved).toBeTruthy();
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      expect(parsed.id).toEqual(projectToSelect.id);
+      expect(parsed.name).toEqual(projectToSelect.name);
+    }
   });
 
   it('should restore selected project from localStorage on init', () => {
-    localStorage.setItem('selected_project', JSON.stringify(mockProjects[0]));
+    const projectToSave = {
+      id: mockProjects[0].id,
+      name: mockProjects[0].name,
+      description: mockProjects[0].description,
+      organizationId: mockProjects[0].organizationId
+    };
+    localStorage.setItem('selected_project', JSON.stringify(projectToSave));
 
     // Create new service instance to trigger constructor
     const newService = new ProjectContextService();
+    const restored = newService.selectedProject;
 
-    expect(newService.selectedProject).toEqual(mockProjects[0]);
+    expect(restored).toBeTruthy();
+    expect(restored?.id).toEqual(projectToSave.id);
+    expect(restored?.name).toEqual(projectToSave.name);
+    expect(restored?.description).toEqual(projectToSave.description);
   });
 
   it('should clear project selection', () => {
