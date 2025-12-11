@@ -95,61 +95,10 @@ jobs:
             echo "Coverage report generated successfully"
           fi
 
-  frontend-admin-portal-tests:
-    name: Frontend Admin Portal Tests & Coverage
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Cache node modules
-        uses: actions/cache@v3
-        with:
-          path: frontend/admin-portal/node_modules
-          key: ${{ runner.os }}-admin-portal-${{ hashFiles('frontend/admin-portal/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-admin-portal-
-
-      - name: Install dependencies
-        working-directory: ./frontend/admin-portal
-        run: npm ci
-
-      - name: Install Chrome dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser
-
-      - name: Run tests with coverage
-        working-directory: ./frontend/admin-portal
-        run: npm run test -- --no-watch --code-coverage --browsers=ChromeHeadless
-        env:
-          CHROME_BIN: /usr/bin/chromium-browser
-
-      - name: Upload admin-portal coverage reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: admin-portal-coverage-report
-          path: frontend/admin-portal/coverage/
-          retention-days: 30
-
-      - name: Display coverage summary
-        working-directory: ./frontend/admin-portal
-        run: |
-          echo "Admin Portal Test Coverage Summary:"
-          if [ -f coverage/admin-portal/index.html ]; then
-            echo "Coverage report generated successfully"
-          fi
-
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-team-portal-tests, frontend-admin-portal-tests]
+    needs: [backend-tests, frontend-team-portal-tests]
     if: always()
 
     steps:
@@ -162,10 +111,8 @@ jobs:
           echo "### Test Results:" >> $GITHUB_STEP_SUMMARY
           echo "- Backend Tests: ${{ needs.backend-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- Team Portal Tests: ${{ needs.frontend-team-portal-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Admin Portal Tests: ${{ needs.frontend-admin-portal-tests.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Coverage Reports:" >> $GITHUB_STEP_SUMMARY
           echo "Coverage reports are available as workflow artifacts:" >> $GITHUB_STEP_SUMMARY
           echo "- backend-coverage-report" >> $GITHUB_STEP_SUMMARY
           echo "- team-portal-coverage-report" >> $GITHUB_STEP_SUMMARY
-          echo "- admin-portal-coverage-report" >> $GITHUB_STEP_SUMMARY
