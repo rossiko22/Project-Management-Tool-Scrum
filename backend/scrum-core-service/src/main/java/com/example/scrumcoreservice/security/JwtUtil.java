@@ -42,15 +42,28 @@ public class JwtUtil {
         return (List<String>) extractAllClaims(token).get("roles");
     }
 
-    @SuppressWarnings("unchecked")
     public List<Long> extractTeamIds(String token) {
-        return (List<Long>) extractAllClaims(token).get("teamIds");
+        Object raw = extractAllClaims(token).get("teamIds");
+        if (raw == null) {
+            return List.of();
+        }
+
+        return ((List<?>) raw).stream()
+                .map(id -> ((Number) id).longValue())
+                .toList();
     }
 
-    @SuppressWarnings("unchecked")
     public List<Long> extractProjectIds(String token) {
-        return (List<Long>) extractAllClaims(token).get("projectIds");
+        Object raw = extractAllClaims(token).get("projectIds");
+        if (raw == null) {
+            return List.of();
+        }
+
+        return ((List<?>) raw).stream()
+                .map(id -> ((Number) id).longValue())
+                .toList();
     }
+
 
     public boolean isTokenExpired(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());

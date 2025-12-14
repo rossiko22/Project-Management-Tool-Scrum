@@ -1,4 +1,4 @@
-import { IsNumber, IsPositive, Min, Max } from 'class-validator';
+import { IsNumber, IsPositive, Min, IsDateString } from 'class-validator';
 
 export class CreateVelocityDto {
   @IsNumber()
@@ -10,19 +10,9 @@ export class CreateVelocityDto {
   sprintId: number;
 
   @IsNumber()
-  @IsPositive()
-  sprintNumber: number;
-
-  @IsNumber()
   @Min(0)
-  completedStoryPoints: number;
+  velocity: number;
 
-  @IsNumber()
-  @Min(0)
-  committedStoryPoints: number;
-
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  completionPercentage: number;
+  @IsDateString()
+  sprintEndDate: Date;
 }

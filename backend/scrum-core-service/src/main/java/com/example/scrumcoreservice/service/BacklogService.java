@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -122,5 +123,75 @@ public class BacklogService {
                 backlogItemRepository.save(item);
             });
         }
+    }
+
+    @Transactional
+    public BacklogItemDto acceptBacklogItem(Long id, Long productOwnerId) {
+        ProductBacklogItem item = backlogItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Backlog item not found"));
+
+        // Item should be in DONE or PENDING_ACCEPTANCE status
+        if (item.getStatus() != ProductBacklogItem.ItemStatus.DONE &&
+            item.getStatus() != ProductBacklogItem.ItemStatus.PENDING_ACCEPTANCE) {
+            throw new RuntimeException("Item must be DONE before it can be accepted");
+        }
+
+        item.setStatus(ProductBacklogItem.ItemStatus.ACCEPTED);
+        item.setReviewedBy(productOwnerId);
+        item.setReviewedAt(LocalDateTime.now());
+        item.setRejectionReason(null); // Clear any previous rejection reason
+
+        item = backlogItemRepository.save(item);
+
+        // Publish backlog item accepted event
+        BacklogItemEvent event = BacklogItemEvent.builder()
+                .itemId(item.getId())
+                .projectId(item.getProjectId())
+                .title(item.getTitle())
+                .type(item.getType().name())
+                .status(item.getStatus().name())
+                .storyPoints(item.getStoryPoints())
+                .action("ACCEPTED")
+                .timestamp(Instant.now())
+                .performedBy(productOwnerId)
+                .build();
+        eventPublisher.publishBacklogItemEvent(event);
+
+        return BacklogItemDto.fromEntity(item);
+    }
+
+    @Transactional
+    public BacklogItemDto rejectBacklogItem(Long id, Long productOwnerId, String reason) {
+        ProductBacklogItem item = backlogItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Backlog item not found"));
+
+        // Item should be in DONE or PENDING_ACCEPTANCE status
+        if (item.getStatus() != ProductBacklogItem.ItemStatus.DONE &&
+            item.getStatus() != ProductBacklogItem.ItemStatus.PENDING_ACCEPTANCE) {
+            throw new RuntimeException("Item must be DONE before it can be rejected");
+        }
+
+        item.setStatus(ProductBacklogItem.ItemStatus.REJECTED);
+        item.setReviewedBy(productOwnerId);
+        item.setReviewedAt(LocalDateTime.now());
+        item.setRejectionReason(reason);
+
+        item = backlogItemRepository.save(item);
+
+        // Publish backlog item rejected event
+        BacklogItemEvent event = BacklogItemEvent.builder()
+                .itemId(item.getId())
+                .projectId(item.getProjectId())
+                .title(item.getTitle())
+                .type(item.getType().name())
+                .status(item.getStatus().name())
+                .storyPoints(item.getStoryPoints())
+                .action("REJECTED")
+                .timestamp(Instant.now())
+                .performedBy(productOwnerId)
+                .build();
+        eventPublisher.publishBacklogItemEvent(event);
+
+        return BacklogItemDto.fromEntity(item);
     }
 }

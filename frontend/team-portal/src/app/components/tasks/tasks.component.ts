@@ -187,6 +187,12 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   updateTaskStatus(task: Task, status: Task['status']): void {
+    // Only developers can update task status, and only their own tasks
+    if (!this.canEditTask(task)) {
+      alert('You can only update status of tasks assigned to you');
+      return;
+    }
+
     this.taskService.updateTaskStatus(task.id, status).subscribe({
       next: (updated) => {
         const index = this.tasks.findIndex(t => t.id === task.id);
@@ -197,6 +203,7 @@ export class TasksComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Failed to update task status', err);
+        alert('Failed to update task status. You may not have permission.');
       }
     });
   }
@@ -258,6 +265,12 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   deleteTask(task: Task): void {
+    // Only developers can delete tasks, and only their own tasks
+    if (!this.canDeleteTask(task)) {
+      alert('You can only delete tasks assigned to you');
+      return;
+    }
+
     if (!confirm(`Are you sure you want to delete task "${task.title}"?`)) {
       return;
     }
@@ -269,8 +282,36 @@ export class TasksComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('Failed to delete task', err);
+        alert('Failed to delete task. You may not have permission.');
       }
     });
+  }
+
+  canEditTask(task: Task): boolean {
+    // Only developers can edit tasks
+    if (!this.authService.hasRole('DEVELOPER')) {
+      return false;
+    }
+
+    // Developers can only edit their own assigned tasks
+    const currentUserId = this.authService.currentUserValue?.id;
+    return task.assigneeId === currentUserId;
+  }
+
+  canDeleteTask(task: Task): boolean {
+    // Only developers can delete tasks
+    if (!this.authService.hasRole('DEVELOPER')) {
+      return false;
+    }
+
+    // Developers can only delete their own assigned tasks
+    const currentUserId = this.authService.currentUserValue?.id;
+    return task.assigneeId === currentUserId;
+  }
+
+  canCreateTask(): boolean {
+    // Only developers can create tasks
+    return this.authService.hasRole('DEVELOPER');
   }
 
   getStatusClass(status: Task['status']): string {

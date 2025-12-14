@@ -5,23 +5,17 @@ export class TeamVelocity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'team_id' })
+  @Column({ name: 'team_id', type: 'bigint' })
   teamId: number;
 
-  @Column({ name: 'sprint_id' })
+  @Column({ name: 'sprint_id', type: 'bigint' })
   sprintId: number;
 
-  @Column({ name: 'sprint_number' })
-  sprintNumber: number;
+  @Column()
+  velocity: number;
 
-  @Column({ name: 'completed_story_points' })
-  completedStoryPoints: number;
-
-  @Column({ name: 'committed_story_points' })
-  committedStoryPoints: number;
-
-  @Column({ name: 'completion_percentage', type: 'decimal', precision: 5, scale: 2 })
-  completionPercentage: number;
+  @Column({ name: 'sprint_end_date', type: 'date' })
+  sprintEndDate: Date;
 
   @CreateDateColumn({ name: 'calculated_at' })
   calculatedAt: Date;

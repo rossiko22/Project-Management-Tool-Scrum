@@ -41,16 +41,38 @@ public class AuthService {
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        // Get user's team IDs and project IDs
+        // Get user's team IDs from all roles (member, product owner, scrum master)
         List<Long> teamIds = teamRepository.findTeamsByMember(user).stream()
                 .map(team -> team.getId())
                 .toList();
 
+        // Also include teams where user is product owner
+        List<Long> poTeamIds = teamRepository.findByProductOwnerId(user.getId()).stream()
+                .map(team -> team.getId())
+                .toList();
+
+        // Also include teams where user is scrum master
+        List<Long> smTeamIds = teamRepository.findByScrumMasterId(user.getId()).stream()
+                .map(team -> team.getId())
+                .toList();
+
+        // Combine all team IDs
+        teamIds = java.util.stream.Stream.of(teamIds, poTeamIds, smTeamIds)
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+
         List<Long> projectIds = teamIds.stream()
-                .flatMap(teamId -> projectRepository.findByTeamId(teamId).stream())
+                .flatMap(teamId -> projectRepository.findByTeam_Id(teamId).stream())
                 .map(project -> project.getId())
                 .distinct()
                 .toList();
+
+        System.out.println("=== JWT GENERATION DEBUG ===");
+        System.out.println("User: " + user.getEmail());
+        System.out.println("Team IDs: " + teamIds);
+        System.out.println("Project IDs: " + projectIds);
+        System.out.println("===========================");
 
         String token = jwtUtil.generateToken(user, teamIds, projectIds);
 

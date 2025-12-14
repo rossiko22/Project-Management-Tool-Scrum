@@ -2,17 +2,17 @@ package com.example.scrumcoreservice.controller;
 
 import com.example.scrumcoreservice.dto.CreateSprintRequest;
 import com.example.scrumcoreservice.dto.SprintDto;
-import com.example.scrumcoreservice.security.JwtUtil;
+import com.example.scrumcoreservice.security.UserPrincipal;
 import com.example.scrumcoreservice.service.SprintService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,26 +25,32 @@ import java.util.List;
 public class SprintController {
 
     private final SprintService sprintService;
-    private final JwtUtil jwtUtil;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Create sprint", description = "Create a new sprint (SM or PO)")
     public ResponseEntity<SprintDto> createSprint(
             @Valid @RequestBody CreateSprintRequest request,
-            HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal UserPrincipal principal) {
 
-        String token = extractToken(httpRequest);
-        Long userId = jwtUtil.extractUserId(token);
-
-        SprintDto sprint = sprintService.createSprint(request, userId);
+        SprintDto sprint = sprintService.createSprint(request, principal.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(sprint);
     }
 
     @GetMapping("/project/{projectId}")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Get project sprints", description = "Get all sprints for a project")
-    public ResponseEntity<List<SprintDto>> getProjectSprints(@PathVariable Long projectId) {
+    public ResponseEntity<List<SprintDto>> getProjectSprints(
+            @PathVariable Long projectId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        // Validate project access
+        boolean hasAccess = principal.getRoles().contains("ORGANIZATION_ADMIN") ||
+            principal.getProjectIds().stream().anyMatch(id -> id.longValue() == projectId);
+        if (!hasAccess) {
+            return ResponseEntity.status(403).build();
+        }
+
         return ResponseEntity.ok(sprintService.getProjectSprints(projectId));
     }
 
@@ -87,13 +93,5 @@ public class SprintController {
             @PathVariable Long backlogItemId) {
         sprintService.removeItemFromSprint(sprintId, backlogItemId);
         return ResponseEntity.noContent().build();
-    }
-
-    private String extractToken(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        throw new RuntimeException("No token found");
     }
 }

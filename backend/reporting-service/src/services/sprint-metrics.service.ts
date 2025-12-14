@@ -19,14 +19,14 @@ export class SprintMetricsService {
   async findBySprintId(sprintId: number): Promise<SprintMetrics | null> {
     return this.sprintMetricsRepository.findOne({
       where: { sprintId },
-      order: { generatedAt: 'DESC' },
+      order: { calculatedAt: 'DESC' },
     });
   }
 
   async findByProjectId(projectId: number): Promise<SprintMetrics[]> {
     return this.sprintMetricsRepository.find({
       where: { projectId },
-      order: { generatedAt: 'DESC' },
+      order: { calculatedAt: 'DESC' },
     });
   }
 }

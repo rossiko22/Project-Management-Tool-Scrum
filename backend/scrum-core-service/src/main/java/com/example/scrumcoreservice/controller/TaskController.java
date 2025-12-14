@@ -25,8 +25,8 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Create task", description = "Create a new task for a backlog item")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Create task", description = "Create a new task for a backlog item (Developers only)")
     public ResponseEntity<TaskDto> createTask(@RequestBody CreateTaskRequest request) {
         TaskDto task = taskService.createTask(
                 request.getBacklogItemId(),
@@ -58,8 +58,8 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Update task status", description = "Update task status (TO_DO, IN_PROGRESS, REVIEW, DONE)")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Update task status", description = "Update task status - developers can only update their assigned tasks")
     public ResponseEntity<TaskDto> updateTaskStatus(
             @PathVariable Long id,
             @RequestParam Task.TaskStatus status) {
@@ -67,17 +67,24 @@ public class TaskController {
     }
 
     @PatchMapping("/{id}/assign")
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Assign task", description = "Assign task to a user")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Self-assign task", description = "Developers can only assign tasks to themselves (pull model)")
     public ResponseEntity<TaskDto> assignTask(
             @PathVariable Long id,
             @RequestParam Long assigneeId) {
         return ResponseEntity.ok(taskService.assignTask(id, assigneeId));
     }
 
+    @PatchMapping("/{id}/unassign")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Unassign task", description = "Developers can unassign their own tasks")
+    public ResponseEntity<TaskDto> unassignTask(@PathVariable Long id) {
+        return ResponseEntity.ok(taskService.unassignTask(id));
+    }
+
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Delete task", description = "Delete a task")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Delete task", description = "Delete a task (developers can only delete their own tasks)")
     public ResponseEntity<Void> deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
         return ResponseEntity.noContent().build();

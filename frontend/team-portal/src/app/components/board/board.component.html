@@ -49,7 +49,9 @@
           *ngFor="let task of getColumnTasks(column)"
           cdkDrag
           [cdkDragData]="task"
+          [cdkDragDisabled]="!canMoveTask(task)"
           class="task-card"
+          [class.task-card-locked]="!canMoveTask(task)"
         >
           <div class="task-header">
             <h4 class="task-title">{{ task.title }}</h4>

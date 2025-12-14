@@ -1,4 +1,4 @@
-import { IsNumber, IsPositive, Min } from 'class-validator';
+import { IsNumber, IsPositive, Min, IsOptional, IsDateString } from 'class-validator';
 
 export class CreateSprintMetricsDto {
   @IsNumber()
@@ -10,34 +10,54 @@ export class CreateSprintMetricsDto {
   projectId: number;
 
   @IsNumber()
-  @Min(0)
-  totalStoryPoints: number;
+  @IsPositive()
+  teamId: number;
 
   @IsNumber()
   @Min(0)
-  completedStoryPoints: number;
+  @IsOptional()
+  committedPoints?: number;
 
   @IsNumber()
   @Min(0)
-  totalTasks: number;
+  @IsOptional()
+  completedPoints?: number;
 
   @IsNumber()
   @Min(0)
-  completedTasks: number;
+  @IsOptional()
+  carriedOverPoints?: number;
 
   @IsNumber()
   @Min(0)
-  plannedHours: number;
+  @IsOptional()
+  velocity?: number;
 
   @IsNumber()
   @Min(0)
-  actualHours: number;
+  @IsOptional()
+  storiesCompleted?: number;
 
   @IsNumber()
   @Min(0)
-  bugsFound: number;
+  @IsOptional()
+  storiesCarriedOver?: number;
 
   @IsNumber()
   @Min(0)
-  bugsFixed: number;
+  @IsOptional()
+  bugsFixed?: number;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  impedimentsCount?: number;
+
+  @IsDateString()
+  @IsOptional()
+  sprintStart?: Date;
+
+  @IsDateString()
+  @IsOptional()
+  sprintEnd?: Date;
 }

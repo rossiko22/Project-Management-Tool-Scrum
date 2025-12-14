@@ -16,12 +16,16 @@ export interface BacklogItem {
   title: string;
   description: string;
   type: 'STORY' | 'EPIC' | 'BUG' | 'TECHNICAL_TASK';
-  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'COMPLETED' | 'ARCHIVED';
+  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'DONE' | 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED';
   storyPoints?: number;
   priority: number;
   position: number;
   acceptanceCriteria?: string;
   createdBy?: number;
+  createdByRole?: string;
+  reviewedBy?: number;
+  reviewedAt?: Date;
+  rejectionReason?: string;
 }
 
 export interface Task {

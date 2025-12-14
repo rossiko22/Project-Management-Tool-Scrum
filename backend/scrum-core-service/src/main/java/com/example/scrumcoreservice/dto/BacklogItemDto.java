@@ -27,6 +27,9 @@ public class BacklogItemDto {
     private String createdByRole;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Long reviewedBy;
+    private LocalDateTime reviewedAt;
+    private String rejectionReason;
 
     public static BacklogItemDto fromEntity(ProductBacklogItem item) {
         return BacklogItemDto.builder()
@@ -44,6 +47,9 @@ public class BacklogItemDto {
                 .createdByRole(item.getCreatedByRole())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
+                .reviewedBy(item.getReviewedBy())
+                .reviewedAt(item.getReviewedAt())
+                .rejectionReason(item.getRejectionReason())
                 .build();
     }
 }

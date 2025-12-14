@@ -21,9 +21,6 @@ public class ProductBacklogItem {
     @Column(name = "project_id", nullable = false)
     private Long projectId;
 
-    @Column(name = "sprint_id")
-    private Long sprintId;
-
     @Column(nullable = false, length = 500)
     private String title;
 
@@ -63,6 +60,15 @@ public class ProductBacklogItem {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "reviewed_by")
+    private Long reviewedBy;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -79,6 +85,6 @@ public class ProductBacklogItem {
     }
 
     public enum ItemStatus {
-        BACKLOG, SPRINT_READY, IN_SPRINT, DONE
+        BACKLOG, SPRINT_READY, IN_SPRINT, DONE, PENDING_ACCEPTANCE, ACCEPTED, REJECTED
     }
 }

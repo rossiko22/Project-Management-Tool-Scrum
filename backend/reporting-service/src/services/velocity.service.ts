@@ -19,7 +19,7 @@ export class VelocityService {
   async findByTeamId(teamId: number): Promise<TeamVelocity[]> {
     return this.velocityRepository.find({
       where: { teamId },
-      order: { sprintNumber: 'ASC' },
+      order: { sprintEndDate: 'ASC' },
     });
   }
 
@@ -29,13 +29,13 @@ export class VelocityService {
   ): Promise<{ averageVelocity: number; sprints: TeamVelocity[] }> {
     const sprints = await this.velocityRepository.find({
       where: { teamId },
-      order: { sprintNumber: 'DESC' },
+      order: { sprintEndDate: 'DESC' },
       take: lastNSprints,
     });
 
     const averageVelocity =
       sprints.length > 0
-        ? sprints.reduce((sum, s) => sum + s.completedStoryPoints, 0) / sprints.length
+        ? sprints.reduce((sum, s) => sum + s.velocity, 0) / sprints.length
         : 0;
 
     return {

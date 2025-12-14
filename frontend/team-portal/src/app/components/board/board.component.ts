@@ -124,6 +124,12 @@ export class BoardComponent implements OnInit {
   onDrop(event: CdkDragDrop<Task[]>, targetColumn: BoardColumn): void {
     const task = event.item.data;
 
+    // Only developers can update task status, and only their own tasks
+    if (!this.canMoveTask(task)) {
+      console.warn('You can only move tasks assigned to you');
+      return;
+    }
+
     if (event.previousContainer === event.container) {
       // Reordering within same column
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
@@ -139,6 +145,17 @@ export class BoardComponent implements OnInit {
       // Update task status on backend
       this.updateTaskStatus(task, targetColumn.status);
     }
+  }
+
+  canMoveTask(task: Task): boolean {
+    // Only developers can move tasks
+    if (!this.authService.hasRole('DEVELOPER')) {
+      return false;
+    }
+
+    // Developers can only move their own assigned tasks
+    const currentUserId = this.authService.currentUserValue?.id;
+    return task.assigneeId === currentUserId;
   }
 
   updateTaskStatus(task: Task, newStatus: Task['status']): void {

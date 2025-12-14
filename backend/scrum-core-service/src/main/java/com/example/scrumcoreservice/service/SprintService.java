@@ -75,6 +75,12 @@ public class SprintService {
         return SprintDto.fromEntity(sprint);
     }
 
+    public SprintDto getActiveSprint(Long projectId) {
+        return sprintRepository.findFirstByProjectIdAndStatusOrderByStartedAtDesc(projectId, Sprint.SprintStatus.ACTIVE)
+                .map(SprintDto::fromEntity)
+                .orElse(null);
+    }
+
     @Transactional
     public SprintDto startSprint(Long id) {
         Sprint sprint = sprintRepository.findById(id)
@@ -169,6 +175,14 @@ public class SprintService {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new RuntimeException("Sprint not found"));
 
+        // Prevent adding items to active or completed sprints
+        if (sprint.getStatus() == Sprint.SprintStatus.ACTIVE) {
+            throw new RuntimeException("Cannot add items to an active sprint. Sprint scope is protected.");
+        }
+        if (sprint.getStatus() == Sprint.SprintStatus.COMPLETED || sprint.getStatus() == Sprint.SprintStatus.CANCELLED) {
+            throw new RuntimeException("Cannot add items to a completed or cancelled sprint");
+        }
+
         ProductBacklogItem item = backlogItemRepository.findById(backlogItemId)
                 .orElseThrow(() -> new RuntimeException("Backlog item not found"));
 
@@ -187,6 +201,17 @@ public class SprintService {
 
     @Transactional
     public void removeItemFromSprint(Long sprintId, Long backlogItemId) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+        // Prevent removing items from active or completed sprints
+        if (sprint.getStatus() == Sprint.SprintStatus.ACTIVE) {
+            throw new RuntimeException("Cannot remove items from an active sprint. Sprint scope is protected.");
+        }
+        if (sprint.getStatus() == Sprint.SprintStatus.COMPLETED || sprint.getStatus() == Sprint.SprintStatus.CANCELLED) {
+            throw new RuntimeException("Cannot remove items from a completed or cancelled sprint");
+        }
+
         sprintBacklogItemRepository.deleteBySprintIdAndBacklogItemId(sprintId, backlogItemId);
 
         // Update item status back to BACKLOG

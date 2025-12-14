@@ -204,8 +204,9 @@ export class BacklogComponent implements OnInit, OnDestroy {
 
   // Permission checks
   canCreate(): boolean {
+    // Only Product Owner and Developers can create backlog items
+    // Scrum Master cannot create items (Scrum rule: SM doesn't own product content)
     return this.authService.hasRole('PRODUCT_OWNER') ||
-           this.authService.hasRole('SCRUM_MASTER') ||
            this.authService.hasRole('DEVELOPER');
   }
 
