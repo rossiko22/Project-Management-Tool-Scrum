@@ -9,6 +9,7 @@ import { ScrumEventsComponent } from './components/scrum-events/scrum-events.com
 import { ImpedimentsComponent } from './components/impediments/impediments.component';
 import { ReportsComponent } from './components/reports/reports.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { TestToastsComponent } from './components/test-toasts/test-toasts.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -22,6 +23,7 @@ export const routes: Routes = [
   { path: 'impediments', component: ImpedimentsComponent, canActivate: [authGuard] },
   { path: 'reports', component: ReportsComponent, canActivate: [authGuard] },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
+  { path: 'test-toasts', component: TestToastsComponent, canActivate: [authGuard] },
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
   { path: '**', redirectTo: '/login' }
 ];

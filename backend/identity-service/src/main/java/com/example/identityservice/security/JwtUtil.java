@@ -25,7 +25,12 @@ public class JwtUtil {
     private Long expiration;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        // Explicitly use HS256 - ensure key is at least 32 bytes (256 bits)
+        byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 32 bytes (256 bits) for HS256");
+        }
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 
     public String generateToken(User user, List<Long> teamIds, List<Long> projectIds) {
@@ -44,7 +49,7 @@ public class JwtUtil {
                 .subject(user.getEmail())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSigningKey())
+                .signWith(getSigningKey(), Jwts.SIG.HS256)  // Explicitly use HS256
                 .compact();
     }
 

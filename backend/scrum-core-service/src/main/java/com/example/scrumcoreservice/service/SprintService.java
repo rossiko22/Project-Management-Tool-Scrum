@@ -138,14 +138,34 @@ public class SprintService {
 
         // Calculate completed points and stories
         List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(id);
+        int committedPoints = 0;
         int completedPoints = 0;
         int storiesCompleted = 0;
+
         for (SprintBacklogItem sbi : sprintItems) {
+            committedPoints += (sbi.getCommittedPoints() != null ? sbi.getCommittedPoints() : 0);
+
             backlogItemRepository.findById(sbi.getBacklogItemId()).ifPresent(item -> {
-                if (item.getStatus() == ProductBacklogItem.ItemStatus.DONE) {
-                    // Item is done, count points
+                if (item.getStatus() == ProductBacklogItem.ItemStatus.DONE ||
+                    item.getStatus() == ProductBacklogItem.ItemStatus.ACCEPTED) {
+                    // Update actual points
+                    Integer itemPoints = sbi.getActualPoints() != null ? sbi.getActualPoints() : sbi.getCommittedPoints();
+                    if (itemPoints == null && item.getStoryPoints() != null) {
+                        itemPoints = item.getStoryPoints();
+                    }
+                    sbi.setActualPoints(itemPoints != null ? itemPoints : 0);
+                    sbi.setCompletedAt(LocalDateTime.now());
+                    sprintBacklogItemRepository.save(sbi);
                 }
             });
+        }
+
+        // Count completed points and stories after updating sprint backlog items
+        for (SprintBacklogItem sbi : sprintItems) {
+            if (sbi.getCompletedAt() != null) {
+                completedPoints += (sbi.getActualPoints() != null ? sbi.getActualPoints() : 0);
+                storiesCompleted++;
+            }
         }
 
         sprint = sprintRepository.save(sprint);
@@ -159,10 +179,55 @@ public class SprintService {
                 .status(sprint.getStatus().name())
                 .startDate(sprint.getStartDate())
                 .endDate(sprint.getEndDate())
+                .committedPoints(committedPoints)
                 .completedPoints(completedPoints)
-                .velocity(completedPoints)
+                .velocity(completedPoints) // Velocity is the completed points per sprint
                 .storiesCompleted(storiesCompleted)
                 .action("COMPLETED")
+                .timestamp(Instant.now())
+                .build();
+        eventPublisher.publishSprintEvent(event);
+
+        return SprintDto.fromEntity(sprint);
+    }
+
+    @Transactional
+    public SprintDto cancelSprint(Long id) {
+        Sprint sprint = sprintRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+        if (sprint.getStatus() == Sprint.SprintStatus.COMPLETED) {
+            throw new RuntimeException("Cannot cancel a completed sprint");
+        }
+
+        if (sprint.getStatus() == Sprint.SprintStatus.CANCELLED) {
+            throw new RuntimeException("Sprint is already cancelled");
+        }
+
+        sprint.setStatus(Sprint.SprintStatus.CANCELLED);
+        sprint.setEndedAt(LocalDateTime.now());
+
+        // Return all backlog items to BACKLOG status
+        List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(id);
+        for (SprintBacklogItem sbi : sprintItems) {
+            backlogItemRepository.findById(sbi.getBacklogItemId()).ifPresent(item -> {
+                item.setStatus(ProductBacklogItem.ItemStatus.BACKLOG);
+                backlogItemRepository.save(item);
+            });
+        }
+
+        sprint = sprintRepository.save(sprint);
+
+        // Publish sprint cancelled event
+        SprintEvent event = SprintEvent.builder()
+                .sprintId(sprint.getId())
+                .projectId(sprint.getProjectId())
+                .sprintName(sprint.getName())
+                .sprintGoal(sprint.getGoal())
+                .status(sprint.getStatus().name())
+                .startDate(sprint.getStartDate())
+                .endDate(sprint.getEndDate())
+                .action("CANCELLED")
                 .timestamp(Instant.now())
                 .build();
         eventPublisher.publishSprintEvent(event);
@@ -219,5 +284,18 @@ public class SprintService {
             item.setStatus(ProductBacklogItem.ItemStatus.BACKLOG);
             backlogItemRepository.save(item);
         });
+    }
+
+    public List<ProductBacklogItem> getSprintBacklog(Long sprintId) {
+        List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(sprintId);
+        return sprintItems.stream()
+                .map(sbi -> backlogItemRepository.findById(sbi.getBacklogItemId())
+                        .orElseThrow(() -> new RuntimeException("Backlog item not found")))
+                .collect(Collectors.toList());
+    }
+
+    public Object getSprintBoard(Long sprintId) {
+        // Return sprint backlog items for board view
+        return getSprintBacklog(sprintId);
     }
 }

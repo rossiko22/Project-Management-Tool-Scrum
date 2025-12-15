@@ -1,16 +1,404 @@
 <div class="sprints-container">
-  <header>
-    <h1>Sprints</h1>
-    <nav>
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/sprints" routerLinkActive="active">Sprints</a>
-      <a routerLink="/tasks" routerLinkActive="active">Tasks</a>
-      <a routerLink="/backlog" routerLinkActive="active">Backlog</a>
-    </nav>
+  <header class="page-header">
+    <div class="header-content">
+      <h1>Sprint Management</h1>
+      <button
+        *ngIf="isScrumMaster"
+        class="btn btn-primary"
+        (click)="openCreateSprintModal()"
+      >
+        + Create Sprint
+      </button>
+    </div>
   </header>
 
-  <div class="sprints-content">
-    <h2>Sprint Management</h2>
-    <p>View and manage your team's sprints</p>
+  <!-- Success/Error Messages -->
+  <div *ngIf="successMessage" class="alert alert-success">
+    {{ successMessage }}
+  </div>
+
+  <div *ngIf="error" class="alert alert-error">
+    {{ error }}
+    <button class="close-btn" (click)="error = null">&times;</button>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div *ngIf="loading && sprints.length === 0" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Loading sprints...</p>
+  </div>
+
+  <!-- Sprints List -->
+  <div *ngIf="!loading || sprints.length > 0" class="sprints-list">
+    <div *ngIf="sprints.length === 0" class="empty-state">
+      <h3>No Sprints Yet</h3>
+      <p>Get started by creating your first sprint</p>
+      <button
+        *ngIf="isScrumMaster"
+        class="btn btn-primary"
+        (click)="openCreateSprintModal()"
+      >
+        Create First Sprint
+      </button>
+    </div>
+
+    <div *ngFor="let sprint of sprints" class="sprint-card">
+      <div class="sprint-header">
+        <div class="sprint-info">
+          <h3>{{ sprint.name }}</h3>
+          <span [class]="'status-badge ' + getStatusClass(sprint.status)">
+            {{ sprint.status }}
+          </span>
+        </div>
+        <div class="sprint-actions" *ngIf="isScrumMaster">
+          <button
+            *ngIf="sprint.status === 'PLANNED'"
+            class="btn btn-success btn-sm"
+            (click)="startSprint(sprint)"
+            title="Start Sprint"
+          >
+            Start
+          </button>
+          <button
+            *ngIf="sprint.status === 'ACTIVE'"
+            class="btn btn-primary btn-sm"
+            (click)="endSprint(sprint)"
+            title="End Sprint"
+          >
+            End
+          </button>
+          <button
+            *ngIf="sprint.status === 'PLANNED' || sprint.status === 'ACTIVE'"
+            class="btn btn-danger btn-sm"
+            (click)="cancelSprint(sprint)"
+            title="Cancel Sprint"
+          >
+            Cancel
+          </button>
+          <button
+            *ngIf="sprint.status === 'COMPLETED' || sprint.status === 'ACTIVE'"
+            class="btn btn-secondary btn-sm"
+            (click)="openRetrospectiveModal(sprint)"
+            title="Create Retrospective"
+          >
+            + Retrospective
+          </button>
+          <button
+            class="btn btn-outline btn-sm"
+            (click)="viewRetrospective(sprint)"
+            title="View Retrospective"
+          >
+            View Retro
+          </button>
+        </div>
+      </div>
+
+      <div class="sprint-body">
+        <div class="sprint-goal">
+          <strong>Goal:</strong> {{ sprint.goal }}
+        </div>
+
+        <div class="sprint-details">
+          <div class="detail-item">
+            <span class="label">Duration:</span>
+            <span class="value">{{ sprint.lengthWeeks }} weeks</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Start Date:</span>
+            <span class="value">{{ formatDate(sprint.startDate) }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">End Date:</span>
+            <span class="value">{{ formatDate(sprint.endDate) }}</span>
+          </div>
+          <div class="detail-item" *ngIf="sprint.teamCapacity">
+            <span class="label">Team Capacity:</span>
+            <span class="value">{{ sprint.teamCapacity }} hours</span>
+          </div>
+        </div>
+
+        <div class="sprint-metrics" *ngIf="sprint.status === 'COMPLETED'">
+          <div class="metric">
+            <span class="metric-label">Committed Points</span>
+            <span class="metric-value">{{ sprint.committedPoints || 0 }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Completed Points</span>
+            <span class="metric-value">{{ sprint.completedPoints || 0 }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Velocity</span>
+            <span class="metric-value highlight">{{ sprint.velocity || 0 }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Stories Done</span>
+            <span class="metric-value">{{ sprint.storiesCompleted || 0 }}</span>
+          </div>
+        </div>
+
+        <div class="sprint-metrics" *ngIf="sprint.status === 'ACTIVE' && sprint.committedPoints">
+          <div class="metric">
+            <span class="metric-label">Committed Points</span>
+            <span class="metric-value">{{ sprint.committedPoints }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Started At</span>
+            <span class="metric-value">{{ formatDate(sprint.startedAt) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Sprint Modal -->
+  <div *ngIf="showCreateModal" class="modal-overlay" (click)="closeCreateModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Create New Sprint</h2>
+        <button class="close-btn" (click)="closeCreateModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form (ngSubmit)="createSprint()">
+          <div class="form-group">
+            <label for="sprintName">Sprint Name *</label>
+            <input
+              type="text"
+              id="sprintName"
+              [(ngModel)]="newSprint.name"
+              name="name"
+              placeholder="e.g., Sprint 10"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="sprintGoal">Sprint Goal *</label>
+            <textarea
+              id="sprintGoal"
+              [(ngModel)]="newSprint.goal"
+              name="goal"
+              placeholder="What is the main objective of this sprint?"
+              rows="3"
+              required
+            ></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="startDate">Start Date *</label>
+              <input
+                type="date"
+                id="startDate"
+                [(ngModel)]="newSprint.startDate"
+                name="startDate"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="endDate">End Date *</label>
+              <input
+                type="date"
+                id="endDate"
+                [(ngModel)]="newSprint.endDate"
+                name="endDate"
+                required
+              >
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="lengthWeeks">Length (weeks) *</label>
+              <input
+                type="number"
+                id="lengthWeeks"
+                [(ngModel)]="newSprint.lengthWeeks"
+                name="lengthWeeks"
+                min="1"
+                max="4"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="teamCapacity">Team Capacity (hours)</label>
+              <input
+                type="number"
+                id="teamCapacity"
+                [(ngModel)]="newSprint.teamCapacity"
+                name="teamCapacity"
+                min="0"
+              >
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="loading">
+              {{ loading ? 'Creating...' : 'Create Sprint' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Retrospective Modal -->
+  <div *ngIf="showRetrospectiveModal" class="modal-overlay" (click)="closeRetrospectiveModal()">
+    <div class="modal-content modal-large" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>
+          {{ viewingRetrospective ? 'Sprint Retrospective' : 'Create Sprint Retrospective' }}
+        </h2>
+        <button class="close-btn" (click)="closeRetrospectiveModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- View Retrospective -->
+        <div *ngIf="viewingRetrospective && retrospective">
+          <div class="retro-section">
+            <h3>Sprint: {{ selectedSprint?.name }}</h3>
+            <p class="meta">
+              Facilitated by User #{{ retrospective.facilitatedBy }} on {{ formatDate(retrospective.createdAt) }}
+            </p>
+            <p class="meta" *ngIf="retrospective.teamMood">
+              Team Mood: <span class="mood-rating">{{ retrospective.teamMood }}/5</span>
+            </p>
+          </div>
+
+          <div class="retro-section">
+            <h4>What Went Well</h4>
+            <ul>
+              <li *ngFor="let item of retrospective.wentWell">{{ item }}</li>
+            </ul>
+          </div>
+
+          <div class="retro-section">
+            <h4>Improvements</h4>
+            <ul>
+              <li *ngFor="let item of retrospective.improvements">{{ item }}</li>
+            </ul>
+          </div>
+
+          <div class="retro-section">
+            <h4>Action Items</h4>
+            <ul>
+              <li *ngFor="let item of retrospective.actionItems">{{ item }}</li>
+            </ul>
+          </div>
+
+          <div class="retro-section" *ngIf="retrospective.overallNotes">
+            <h4>Overall Notes</h4>
+            <p>{{ retrospective.overallNotes }}</p>
+          </div>
+        </div>
+
+        <!-- Create Retrospective Form -->
+        <form *ngIf="!viewingRetrospective" (ngSubmit)="createRetrospective()">
+          <div class="form-group">
+            <label>What Went Well</label>
+            <div *ngFor="let item of newRetrospective.wentWell; let i = index; trackBy: trackByIndex" class="dynamic-input">
+              <input
+                type="text"
+                [(ngModel)]="newRetrospective.wentWell[i]"
+                [name]="'wentWell' + i"
+                placeholder="Something positive from the sprint..."
+              >
+              <button
+                type="button"
+                class="btn-icon"
+                (click)="removeItem(newRetrospective.wentWell, i)"
+                *ngIf="newRetrospective.wentWell.length > 1"
+              >
+                &times;
+              </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.wentWell)">
+              + Add Item
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label>Improvements</label>
+            <div *ngFor="let item of newRetrospective.improvements; let i = index; trackBy: trackByIndex" class="dynamic-input">
+              <input
+                type="text"
+                [(ngModel)]="newRetrospective.improvements[i]"
+                [name]="'improvements' + i"
+                placeholder="What could be improved..."
+              >
+              <button
+                type="button"
+                class="btn-icon"
+                (click)="removeItem(newRetrospective.improvements, i)"
+                *ngIf="newRetrospective.improvements.length > 1"
+              >
+                &times;
+              </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.improvements)">
+              + Add Item
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label>Action Items</label>
+            <div *ngFor="let item of newRetrospective.actionItems; let i = index; trackBy: trackByIndex" class="dynamic-input">
+              <input
+                type="text"
+                [(ngModel)]="newRetrospective.actionItems[i]"
+                [name]="'actionItems' + i"
+                placeholder="What will we do differently next sprint..."
+              >
+              <button
+                type="button"
+                class="btn-icon"
+                (click)="removeItem(newRetrospective.actionItems, i)"
+                *ngIf="newRetrospective.actionItems.length > 1"
+              >
+                &times;
+              </button>
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.actionItems)">
+              + Add Item
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="overallNotes">Overall Notes (Optional)</label>
+            <textarea
+              id="overallNotes"
+              [(ngModel)]="newRetrospective.overallNotes"
+              name="overallNotes"
+              placeholder="Any additional thoughts about the sprint..."
+              rows="3"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="teamMood">Team Mood (1-5)</label>
+            <select id="teamMood" [(ngModel)]="newRetrospective.teamMood" name="teamMood">
+              <option [value]="1">1 - Poor</option>
+              <option [value]="2">2 - Below Average</option>
+              <option [value]="3">3 - Average</option>
+              <option [value]="4">4 - Good</option>
+              <option [value]="5">5 - Excellent</option>
+            </select>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeRetrospectiveModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="loading">
+              {{ loading ? 'Creating...' : 'Create Retrospective' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
+

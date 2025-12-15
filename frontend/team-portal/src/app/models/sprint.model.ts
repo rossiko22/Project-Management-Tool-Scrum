@@ -1,6 +1,7 @@
 export interface Sprint {
   id: number;
   projectId: number;
+  teamId?: number;
   name: string;
   goal: string;
   startDate: Date;
@@ -8,6 +9,47 @@ export interface Sprint {
   status: 'PLANNED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
   teamCapacity?: number;
   lengthWeeks?: number;
+  committedPoints?: number;
+  completedPoints?: number;
+  velocity?: number;
+  storiesCompleted?: number;
+  startedAt?: Date;
+  endedAt?: Date;
+  createdAt?: Date;
+}
+
+export interface CreateSprintRequest {
+  projectId: number;
+  teamId: number;
+  name: string;
+  goal: string;
+  startDate: string;
+  endDate: string;
+  lengthWeeks: number;
+  teamCapacity?: number;
+}
+
+export interface Retrospective {
+  id: number;
+  sprintId: number;
+  facilitatedBy: number;
+  facilitatorName?: string;
+  wentWell: string[];
+  improvements: string[];
+  actionItems: string[];
+  overallNotes?: string;
+  teamMood?: number;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+export interface CreateRetrospectiveRequest {
+  sprintId: number;
+  wentWell: string[];
+  improvements: string[];
+  actionItems: string[];
+  overallNotes?: string;
+  teamMood?: number;
 }
 
 export interface BacklogItem {

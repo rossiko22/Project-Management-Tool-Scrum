@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Sprint, SprintBacklogItem } from '../models/sprint.model';
+import { Sprint, SprintBacklogItem, CreateSprintRequest } from '../models/sprint.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -13,19 +13,19 @@ export class SprintService {
   constructor(private http: HttpClient) {}
 
   getProjectSprints(projectId: number): Observable<Sprint[]> {
-    return this.http.get<Sprint[]>(`${environment.scrumApiUrl}/projects/${projectId}/sprints`);
+    return this.http.get<Sprint[]>(`${this.apiUrl}/project/${projectId}`);
   }
 
   getActiveSprint(projectId: number): Observable<Sprint | null> {
-    return this.http.get<Sprint | null>(`${environment.scrumApiUrl}/projects/${projectId}/sprints/active`);
+    return this.http.get<Sprint | null>(`${this.apiUrl}/project/${projectId}/active`);
   }
 
   getSprint(id: number): Observable<Sprint> {
     return this.http.get<Sprint>(`${this.apiUrl}/${id}`);
   }
 
-  createSprint(projectId: number, sprint: Partial<Sprint>): Observable<Sprint> {
-    return this.http.post<Sprint>(`${environment.scrumApiUrl}/projects/${projectId}/sprints`, sprint);
+  createSprint(request: CreateSprintRequest): Observable<Sprint> {
+    return this.http.post<Sprint>(this.apiUrl, request);
   }
 
   updateSprint(id: number, sprint: Partial<Sprint>): Observable<Sprint> {
@@ -48,15 +48,16 @@ export class SprintService {
     return this.http.get<any[]>(`${this.apiUrl}/${sprintId}/backlog`);
   }
 
-  addItemToSprint(sprintId: number, backlogItemId: number, committedPoints?: number): Observable<void> {
-    return this.http.post<void>(`${this.apiUrl}/${sprintId}/backlog-items`, { backlogItemId, committedPoints });
+  addItemToSprint(sprintId: number, backlogItemId: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${sprintId}/items/${backlogItemId}`, {});
   }
 
   removeItemFromSprint(sprintId: number, backlogItemId: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${sprintId}/backlog-items/${backlogItemId}`);
+    return this.http.delete<void>(`${this.apiUrl}/${sprintId}/items/${backlogItemId}`);
   }
 
   getSprintBoard(sprintId: number): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/${sprintId}/board`);
   }
 }
+

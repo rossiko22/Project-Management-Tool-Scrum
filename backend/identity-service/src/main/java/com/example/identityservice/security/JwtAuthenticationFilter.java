@@ -64,11 +64,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             email = jwtUtil.extractEmail(token);
             if (jwtUtil.isTokenExpired(token)) {
-                chain.doFilter(request, response);
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Token expired\",\"message\":\"Your session has expired. Please log in again.\"}");
                 return;
             }
         } catch (Exception ex) {
-            chain.doFilter(request, response);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"error\":\"Invalid token\",\"message\":\"Your session is invalid. Please log in again.\"}");
             return;
         }
 

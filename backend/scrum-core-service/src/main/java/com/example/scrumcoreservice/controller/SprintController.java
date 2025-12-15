@@ -27,8 +27,8 @@ public class SprintController {
     private final SprintService sprintService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Create sprint", description = "Create a new sprint (SM or PO)")
+    @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Create sprint", description = "Create a new sprint (Scrum Master only)")
     public ResponseEntity<SprintDto> createSprint(
             @Valid @RequestBody CreateSprintRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -54,6 +54,27 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.getProjectSprints(projectId));
     }
 
+    @GetMapping("/project/{projectId}/active")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Get active sprint", description = "Get the active sprint for a project")
+    public ResponseEntity<SprintDto> getActiveSprint(
+            @PathVariable Long projectId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+
+        // Validate project access
+        boolean hasAccess = principal.getRoles().contains("ORGANIZATION_ADMIN") ||
+            principal.getProjectIds().stream().anyMatch(id -> id.longValue() == projectId);
+        if (!hasAccess) {
+            return ResponseEntity.status(403).build();
+        }
+
+        SprintDto activeSprint = sprintService.getActiveSprint(projectId);
+        if (activeSprint == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(activeSprint);
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Get sprint", description = "Get sprint details by ID")
@@ -75,6 +96,13 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.endSprint(id));
     }
 
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Cancel sprint", description = "Cancel a sprint (SM only)")
+    public ResponseEntity<SprintDto> cancelSprint(@PathVariable Long id) {
+        return ResponseEntity.ok(sprintService.cancelSprint(id));
+    }
+
     @PostMapping("/{sprintId}/items/{backlogItemId}")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Add item to sprint", description = "Add backlog item to sprint (during planning)")
@@ -93,5 +121,19 @@ public class SprintController {
             @PathVariable Long backlogItemId) {
         sprintService.removeItemFromSprint(sprintId, backlogItemId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{sprintId}/backlog")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Get sprint backlog", description = "Get all backlog items in a sprint")
+    public ResponseEntity<List<?>> getSprintBacklog(@PathVariable Long sprintId) {
+        return ResponseEntity.ok(sprintService.getSprintBacklog(sprintId));
+    }
+
+    @GetMapping("/{sprintId}/board")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Get sprint board", description = "Get sprint board view with tasks grouped by status")
+    public ResponseEntity<?> getSprintBoard(@PathVariable Long sprintId) {
+        return ResponseEntity.ok(sprintService.getSprintBoard(sprintId));
     }
 }

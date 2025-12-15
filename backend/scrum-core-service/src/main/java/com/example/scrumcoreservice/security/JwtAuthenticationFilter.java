@@ -36,13 +36,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 email = jwtUtil.extractEmail(jwt);
             } catch (Exception e) {
-                // Token is invalid
+                // Token is invalid - return 401
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"error\":\"Invalid token\",\"message\":\"Your session is invalid. Please log in again.\"}");
+                return;
             }
         }
 
         if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             try {
-                if (!jwtUtil.isTokenExpired(jwt)) {
+                if (jwtUtil.isTokenExpired(jwt)) {
+                    // Token is expired - return 401
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Token expired\",\"message\":\"Your session has expired. Please log in again.\"}");
+                    return;
+                }
+                if (true) {  // Continue with normal flow
                     List<String> roles = jwtUtil.extractRoles(jwt);
                     List<Long> teamIds = jwtUtil.extractTeamIds(jwt);
                     List<Long> projectIds = jwtUtil.extractProjectIds(jwt);
