@@ -42,18 +42,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
         // Check if error message indicates token expiration
         const errorMessage = error.error?.message || error.message || '';
+
+        // Show toast notification (with deduplication via toastService)
         if (errorMessage.toLowerCase().includes('expired')) {
           toastService.jwtExpired();
         } else {
           toastService.jwtInvalid();
         }
 
-        // Logout user and redirect to login
-        authService.logout();
-        router.navigate(['/login']);
+        // DO NOT redirect to login - let user stay on current page
+        // User will see toast and all protected actions will fail
+        // This provides clear feedback without disrupting user context
 
       } else if (error.status === 403) {
-        // Forbidden - User doesn't have permission
+        // Forbidden - User authenticated but lacks permission
         console.error('[Interceptor] 403 Forbidden - Insufficient permissions');
         toastService.forbidden();
 

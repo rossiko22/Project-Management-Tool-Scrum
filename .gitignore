@@ -35,3 +35,7 @@ MIGRATION_GUIDE.md
 **/.gitignore
 .DS_Store
 Thumbs.db
+
+# Local development
+logs/
+.pids/

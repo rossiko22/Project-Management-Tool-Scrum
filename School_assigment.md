@@ -463,53 +463,6 @@ Password: admin123
 
 ---
 
-## Bug Fix - Active Sprint Endpoint (403 Error)
-
-### Issue
-During testing, the frontend was encountering a 403 Forbidden error when trying to access the `/api/scrum/sprints/project/{projectId}/active` endpoint used by the dashboard and board components.
-
-### Root Cause
-The endpoint was missing from the `SprintController`. The `SprintService` had the method `getActiveSprint(Long projectId)` but there was no corresponding HTTP endpoint in the controller.
-
-### Solution
-Added the missing endpoint to `SprintController.java`:
-
-```java
-@GetMapping("/project/{projectId}/active")
-@PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-@Operation(summary = "Get active sprint", description = "Get the active sprint for a project")
-public ResponseEntity<SprintDto> getActiveSprint(
-        @PathVariable Long projectId,
-        @AuthenticationPrincipal UserPrincipal principal) {
-
-    // Validate project access
-    boolean hasAccess = principal.getRoles().contains("ORGANIZATION_ADMIN") ||
-        principal.getProjectIds().stream().anyMatch(id -> id.longValue() == projectId);
-    if (!hasAccess) {
-        return ResponseEntity.status(403).build();
-    }
-
-    SprintDto activeSprint = sprintService.getActiveSprint(projectId);
-    if (activeSprint == null) {
-        return ResponseEntity.noContent().build();
-    }
-    return ResponseEntity.ok(activeSprint);
-}
-```
-
-### Deploy Steps
-1. Rebuilt scrum-core-service: `mvn clean package -DskipTests`
-2. Rebuilt Docker image: `docker compose build scrum-core-service`
-3. Recreated container: `docker compose up -d scrum-core-service`
-
-### Testing
-After deployment, refresh your browser and the 403 error should be resolved. The endpoint now correctly returns:
-- **200 OK** with sprint data if an active sprint exists
-- **204 No Content** if no active sprint exists
-- **403 Forbidden** only if user doesn't have access to the project
-
----
-
 ## Testing the Implementation
 
 ### Manual Testing Checklist:

@@ -5,63 +5,108 @@ import { ToastrService } from 'ngx-toastr';
   providedIn: 'root'
 })
 export class ToastService {
+  private recentToasts = new Map<string, number>();
+  private readonly TOAST_COOLDOWN_MS = 3000; // Prevent same toast within 3 seconds
+
   constructor(private toastr: ToastrService) {}
 
+  private canShowToast(key: string): boolean {
+    const lastShown = this.recentToasts.get(key);
+    const now = Date.now();
+
+    if (lastShown && now - lastShown < this.TOAST_COOLDOWN_MS) {
+      return false; // Too soon, skip this toast
+    }
+
+    this.recentToasts.set(key, now);
+    return true;
+  }
+
   success(message: string, title?: string): void {
-    this.toastr.success(message, title || 'Success');
+    const key = `success:${title}:${message}`;
+    if (this.canShowToast(key)) {
+      this.toastr.success(message, title || 'Success');
+    }
   }
 
   error(message: string, title?: string): void {
-    this.toastr.error(message, title || 'Error');
+    const key = `error:${title}:${message}`;
+    if (this.canShowToast(key)) {
+      this.toastr.error(message, title || 'Error');
+    }
   }
 
   warning(message: string, title?: string): void {
-    this.toastr.warning(message, title || 'Warning');
+    const key = `warning:${title}:${message}`;
+    if (this.canShowToast(key)) {
+      this.toastr.warning(message, title || 'Warning');
+    }
   }
 
   info(message: string, title?: string): void {
-    this.toastr.info(message, title || 'Info');
+    const key = `info:${title}:${message}`;
+    if (this.canShowToast(key)) {
+      this.toastr.info(message, title || 'Info');
+    }
   }
 
   jwtExpired(): void {
-    this.error(
-      'Your session has expired. Please log in again.',
-      'Session Expired'
-    );
+    const key = 'jwt:expired';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'Your session has expired. Please log in again.',
+        'Session Expired'
+      );
+    }
   }
 
   jwtInvalid(): void {
-    this.error(
-      'Your session is invalid. Please log in again.',
-      'Invalid Session'
-    );
+    const key = 'jwt:invalid';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'Your session is invalid. Please log in again.',
+        'Invalid Session'
+      );
+    }
   }
 
   unauthorized(): void {
-    this.error(
-      'You are not authorized to perform this action.',
-      'Unauthorized'
-    );
+    const key = 'auth:unauthorized';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'You are not authorized to perform this action.',
+        'Unauthorized'
+      );
+    }
   }
 
   forbidden(): void {
-    this.error(
-      'You do not have permission to access this resource.',
-      'Access Denied'
-    );
+    const key = 'auth:forbidden';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'You do not have permission to access this resource.',
+        'Access Denied'
+      );
+    }
   }
 
   serverError(): void {
-    this.error(
-      'An unexpected server error occurred. Please try again later.',
-      'Server Error'
-    );
+    const key = 'server:error';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'An unexpected server error occurred. Please try again later.',
+        'Server Error'
+      );
+    }
   }
 
   networkError(): void {
-    this.error(
-      'Unable to connect to the server. Please check your internet connection.',
-      'Network Error'
-    );
+    const key = 'network:error';
+    if (this.canShowToast(key)) {
+      this.toastr.error(
+        'Unable to connect to the server. Please check your internet connection.',
+        'Network Error'
+      );
+    }
   }
 }
