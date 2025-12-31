@@ -6,6 +6,7 @@ import com.example.identityservice.dto.ProjectDto;
 import com.example.identityservice.entity.Project;
 import com.example.identityservice.security.JwtUtil;
 import com.example.identityservice.service.ProjectService;
+import com.example.identityservice.service.RabbitMQLoggerService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -26,6 +27,7 @@ public class ProjectController {
 
     private final ProjectService projectService;
     private final JwtUtil jwtUtil;
+    private final RabbitMQLoggerService logger;
 
     private String getTokenFromRequest(HttpServletRequest request) {
         // Try to get JWT from cookie
@@ -92,9 +94,18 @@ public class ProjectController {
             @Valid @RequestBody CreateProjectRequest request,
             HttpServletRequest httpRequest) {
 
-        Long userId = getUserIdFromRequest(httpRequest);
-        Project project = projectService.createProjectWithTeam(request, userId);
-        return ResponseEntity.ok(ProjectDto.fromEntity(project));
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Creating new project: " + request.getName(), url);
+
+        try {
+            Long userId = getUserIdFromRequest(httpRequest);
+            Project project = projectService.createProjectWithTeam(request, userId);
+            logger.logInfo("Project created successfully. ID: " + project.getId(), url);
+            return ResponseEntity.ok(ProjectDto.fromEntity(project));
+        } catch (Exception e) {
+            logger.logError("Failed to create project: " + e.getMessage(), url);
+            throw e;
+        }
     }
 
     @PostMapping("/{id}/assign-team")
@@ -120,6 +131,9 @@ public class ProjectController {
             HttpServletRequest httpRequest,
             Authentication authentication) {
 
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Getting all projects for user: " + authentication.getName(), url);
+
         List<ProjectDto> projects;
 
         // Organization admins can see all projects
@@ -138,6 +152,7 @@ public class ProjectController {
                     .collect(Collectors.toList());
         }
 
+        logger.logInfo("Retrieved " + projects.size() + " projects", url);
         return ResponseEntity.ok(projects);
     }
 
@@ -147,12 +162,17 @@ public class ProjectController {
             HttpServletRequest httpRequest,
             Authentication authentication) {
 
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Getting project by ID: " + id, url);
+
         // Check if user has access to this project
         if (!hasAccessToProject(httpRequest, id, authentication)) {
+            logger.logWarn("Access denied to project " + id + " for user: " + authentication.getName(), url);
             return ResponseEntity.status(403).build();
         }
 
         Project project = projectService.getProjectById(id);
+        logger.logInfo("Retrieved project: " + project.getName(), url);
         return ResponseEntity.ok(ProjectDto.fromEntity(project));
     }
 

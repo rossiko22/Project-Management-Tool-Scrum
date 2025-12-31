@@ -4,6 +4,7 @@ import com.example.identityservice.dto.LoginRequest;
 import com.example.identityservice.dto.LoginResponse;
 import com.example.identityservice.dto.UserDto;
 import com.example.identityservice.service.AuthService;
+import com.example.identityservice.service.RabbitMQLoggerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RabbitMQLoggerService logger;
 
     @Value("${jwt.expiration:28800000}") // Default 8 hours in milliseconds
     private Long jwtExpiration;
@@ -34,7 +36,25 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
 
-        LoginResponse response = authService.login(request);
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Authentication attempt for user: " + request.getEmail(), url);
+
+        try {
+            LoginResponse response = authService.login(request);
+            logger.logInfo("User authenticated successfully: " + request.getEmail(), url);
+            return createLoginResponse(response, httpRequest, httpResponse);
+        } catch (Exception e) {
+            logger.logError("Authentication failed for user " + request.getEmail() + ": " + e.getMessage(), url);
+            throw e;
+        }
+    }
+
+    private ResponseEntity<LoginResponse> createLoginResponse(
+            LoginResponse response,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+
+        LoginResponse loginResponse = response;
 
         // Determine domain from request host
         String host = httpRequest.getHeader("Host");
@@ -63,13 +83,15 @@ public class AuthController {
 
         httpResponse.addCookie(jwtCookie);
 
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(loginResponse);
     }
 
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Get currently authenticated user information")
-    public ResponseEntity<UserDto> getCurrentUser(Authentication authentication) {
+    public ResponseEntity<UserDto> getCurrentUser(Authentication authentication, HttpServletRequest request) {
+        String url = request.getRequestURI();
         String email = authentication.getName();
+        logger.logInfo("Getting current user info: " + email, url);
         return ResponseEntity.ok(authService.getCurrentUser(email));
     }
 
@@ -78,6 +100,9 @@ public class AuthController {
     public ResponseEntity<Void> logout(
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
+
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("User logout", url);
 
         // Determine domain from request host
         String host = httpRequest.getHeader("Host");

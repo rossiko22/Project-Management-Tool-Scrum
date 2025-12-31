@@ -3,10 +3,12 @@ package com.example.scrumcoreservice.controller;
 import com.example.scrumcoreservice.dto.CreateSprintRequest;
 import com.example.scrumcoreservice.dto.SprintDto;
 import com.example.scrumcoreservice.security.UserPrincipal;
+import com.example.scrumcoreservice.service.RabbitMQLoggerService;
 import com.example.scrumcoreservice.service.SprintService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,16 +27,27 @@ import java.util.List;
 public class SprintController {
 
     private final SprintService sprintService;
+    private final RabbitMQLoggerService logger;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Create sprint", description = "Create a new sprint (Scrum Master only)")
     public ResponseEntity<SprintDto> createSprint(
             @Valid @RequestBody CreateSprintRequest request,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest httpRequest) {
 
-        SprintDto sprint = sprintService.createSprint(request, principal.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(sprint);
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Creating sprint: " + request.getName() + " for project: " + request.getProjectId(), url);
+
+        try {
+            SprintDto sprint = sprintService.createSprint(request, principal.getUserId());
+            logger.logInfo("Sprint created successfully. ID: " + sprint.getId(), url);
+            return ResponseEntity.status(HttpStatus.CREATED).body(sprint);
+        } catch (Exception e) {
+            logger.logError("Failed to create sprint: " + e.getMessage(), url);
+            throw e;
+        }
     }
 
     @GetMapping("/project/{projectId}")
@@ -42,16 +55,23 @@ public class SprintController {
     @Operation(summary = "Get project sprints", description = "Get all sprints for a project")
     public ResponseEntity<List<SprintDto>> getProjectSprints(
             @PathVariable Long projectId,
-            @AuthenticationPrincipal UserPrincipal principal) {
+            @AuthenticationPrincipal UserPrincipal principal,
+            HttpServletRequest httpRequest) {
+
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Getting sprints for project: " + projectId, url);
 
         // Validate project access
         boolean hasAccess = principal.getRoles().contains("ORGANIZATION_ADMIN") ||
             principal.getProjectIds().stream().anyMatch(id -> id.longValue() == projectId);
         if (!hasAccess) {
+            logger.logWarn("Access denied to project " + projectId + " sprints", url);
             return ResponseEntity.status(403).build();
         }
 
-        return ResponseEntity.ok(sprintService.getProjectSprints(projectId));
+        List<SprintDto> sprints = sprintService.getProjectSprints(projectId);
+        logger.logInfo("Retrieved " + sprints.size() + " sprints for project: " + projectId, url);
+        return ResponseEntity.ok(sprints);
     }
 
     @GetMapping("/project/{projectId}/active")
