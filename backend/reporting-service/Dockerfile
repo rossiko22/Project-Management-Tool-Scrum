@@ -21,7 +21,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install PostgreSQL client for running migrations
-RUN apk add --no-cache postgresql-client
+RUN apk update && apk add --no-cache postgresql16-client
 
 # Copy package files
 COPY package*.json ./

@@ -103,19 +103,23 @@ public class SprintController {
         return ResponseEntity.ok(sprintService.cancelSprint(id));
     }
 
-    @PostMapping("/{sprintId}/items/{backlogItemId}")
+    @PostMapping("/{sprintId}/items")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Add item to sprint", description = "Add backlog item to sprint (during planning)")
+    @Operation(summary = "Request to add item to sprint",
+               description = "Team member requests to add backlog item to sprint - triggers team approval workflow (all members except requester must approve)")
     public ResponseEntity<Void> addItemToSprint(
             @PathVariable Long sprintId,
-            @PathVariable Long backlogItemId) {
-        sprintService.addItemToSprint(sprintId, backlogItemId);
+            @Valid @RequestBody com.example.scrumcoreservice.dto.AddItemToSprintRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        sprintService.addItemToSprint(sprintId, request.getBacklogItemId(),
+                request.getAssignedDeveloperIds(), principal.getUserId());
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{sprintId}/items/{backlogItemId}")
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Remove item from sprint", description = "Remove backlog item from sprint (before sprint starts)")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Remove item from sprint",
+               description = "Product Owner removes backlog item from sprint (before sprint starts - enforces Scrum methodology)")
     public ResponseEntity<Void> removeItemFromSprint(
             @PathVariable Long sprintId,
             @PathVariable Long backlogItemId) {
@@ -132,8 +136,28 @@ public class SprintController {
 
     @GetMapping("/{sprintId}/board")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Get sprint board", description = "Get sprint board view with tasks grouped by status")
-    public ResponseEntity<?> getSprintBoard(@PathVariable Long sprintId) {
+    @Operation(summary = "Get sprint board",
+               description = "Get sprint board view with backlog items grouped by board column (TO_DO, IN_PROGRESS, REVIEW, DONE)")
+    public ResponseEntity<com.example.scrumcoreservice.dto.SprintBoardDto> getSprintBoard(@PathVariable Long sprintId) {
         return ResponseEntity.ok(sprintService.getSprintBoard(sprintId));
+    }
+
+    @PostMapping("/{sprintId}/board/move")
+    @PreAuthorize("hasAnyRole('DEVELOPER', 'SCRUM_MASTER', 'PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Move item on sprint board",
+               description = "Move a backlog item between board columns (TO_DO → IN_PROGRESS → REVIEW → DONE). Can move in any order.")
+    public ResponseEntity<Void> moveBoardItem(
+            @PathVariable Long sprintId,
+            @Valid @RequestBody com.example.scrumcoreservice.dto.MoveBoardItemRequest request) {
+
+        com.example.scrumcoreservice.entity.ProductBacklogItem.BoardColumn targetColumn;
+        try {
+            targetColumn = com.example.scrumcoreservice.entity.ProductBacklogItem.BoardColumn.valueOf(request.getTargetColumn());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        sprintService.moveBoardItem(sprintId, request.getBacklogItemId(), targetColumn);
+        return ResponseEntity.ok().build();
     }
 }

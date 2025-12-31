@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
@@ -6,6 +6,7 @@ import { SprintMetricsModule } from './modules/sprint-metrics.module';
 import { BurndownModule } from './modules/burndown.module';
 import { CumulativeFlowModule } from './modules/cumulative-flow.module';
 import { VelocityModule } from './modules/velocity.module';
+import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
 
 @Module({
   imports: [
@@ -34,4 +35,10 @@ import { VelocityModule } from './modules/velocity.module';
   ],
   controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(CorrelationIdMiddleware)
+      .forRoutes('*');
+  }
+}

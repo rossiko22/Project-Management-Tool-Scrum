@@ -7,6 +7,7 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 import { BacklogService } from '../../services/backlog.service';
 import { ProjectContextService } from '../../services/project-context.service';
 import { AuthService } from '../../services/auth.service';
+import { ApprovalService, BacklogItemApproval } from '../../services/approval.service';
 import { BacklogItem } from '../../models/sprint.model';
 import { Project } from '../../models/project.model';
 
@@ -37,12 +38,19 @@ export class BacklogComponent implements OnInit, OnDestroy {
 
   // Item types
   itemTypes = ['STORY', 'EPIC', 'BUG', 'TECHNICAL_TASK'];
-  itemStatuses = ['BACKLOG', 'SPRINT_READY', 'IN_SPRINT', 'DONE'];
+  itemStatuses = ['BACKLOG', 'SPRINT_READY', 'IN_SPRINT', 'DONE', 'PENDING_APPROVAL'];
+
+  // Approval tracking
+  itemApprovals: Map<number, BacklogItemApproval[]> = new Map();
+  rejectionReason = '';
+  showRejectionModal = false;
+  currentRejectionItem: BacklogItem | null = null;
 
   constructor(
     private backlogService: BacklogService,
     private projectContext: ProjectContextService,
-    public authService: AuthService
+    public authService: AuthService,
+    private approvalService: ApprovalService
   ) {}
 
   ngOnInit(): void {
@@ -72,6 +80,11 @@ export class BacklogComponent implements OnInit, OnDestroy {
       next: (items) => {
         this.backlogItems = items.sort((a, b) => a.position - b.position);
         this.applyFilters();
+
+        // Load approval status for pending approval items
+        const pendingItems = items.filter(item => item.status === 'PENDING_APPROVAL');
+        pendingItems.forEach(item => this.loadApprovalStatus(item));
+
         this.loading = false;
       },
       error: (err) => {
@@ -273,5 +286,126 @@ export class BacklogComponent implements OnInit, OnDestroy {
       case 'TECHNICAL_TASK': return 'tech';
       default: return '';
     }
+  }
+
+  // Approval methods
+  isPendingApproval(item: BacklogItem): boolean {
+    return item.status === 'PENDING_APPROVAL';
+  }
+
+  canApprove(item: BacklogItem): boolean {
+    if (!this.isPendingApproval(item)) return false;
+
+    const currentUserId = this.authService.currentUserValue?.id;
+    if (!currentUserId) return false;
+
+    // Check if user has a pending approval for this item
+    const approvals = this.itemApprovals.get(item.id);
+    if (!approvals) return false;
+
+    const userApproval = approvals.find(a => a.developerId === currentUserId);
+    return userApproval?.status === 'PENDING';
+  }
+
+  getUserApprovalStatus(item: BacklogItem): string {
+    const currentUserId = this.authService.currentUserValue?.id;
+    if (!currentUserId) return '';
+
+    const approvals = this.itemApprovals.get(item.id);
+    if (!approvals) return '';
+
+    const userApproval = approvals.find(a => a.developerId === currentUserId);
+    if (!userApproval) return 'Waiting for team';
+
+    if (userApproval.status === 'APPROVED') return '✓ You approved';
+    if (userApproval.status === 'REJECTED') return '✗ You rejected';
+    return '';
+  }
+
+  loadApprovalStatus(item: BacklogItem): void {
+    if (!this.isPendingApproval(item)) return;
+
+    // Try to get sprint ID from the item (we need to enhance the BacklogItem model or get it from backend)
+    // For now, we'll fetch pending approvals for the current user and match by item ID
+    this.approvalService.getMyPendingApprovals().subscribe({
+      next: (approvals) => {
+        // Group approvals by backlog item ID
+        const itemApprovalsList = approvals.filter(a => a.backlogItemId === item.id);
+        if (itemApprovalsList.length > 0) {
+          // Get full approval list for this item
+          const firstApproval = itemApprovalsList[0];
+          this.approvalService.getApprovalsForItem(item.id, firstApproval.sprintId).subscribe({
+            next: (fullApprovals) => {
+              this.itemApprovals.set(item.id, fullApprovals);
+            }
+          });
+        }
+      },
+      error: (err) => console.error('Failed to load approval status', err)
+    });
+  }
+
+  approveItem(item: BacklogItem): void {
+    const approvals = this.itemApprovals.get(item.id);
+    if (!approvals || approvals.length === 0) {
+      this.error = 'Unable to find approval information for this item';
+      return;
+    }
+
+    const sprintId = approvals[0].sprintId;
+
+    this.approvalService.approveItem(item.id, sprintId).subscribe({
+      next: () => {
+        console.log('Item approved successfully');
+        // Reload backlog to get updated status
+        this.loadBacklog();
+      },
+      error: (err) => {
+        this.error = 'Failed to approve item';
+        console.error(err);
+      }
+    });
+  }
+
+  openRejectModal(item: BacklogItem): void {
+    this.currentRejectionItem = item;
+    this.rejectionReason = '';
+    this.showRejectionModal = true;
+  }
+
+  closeRejectionModal(): void {
+    this.showRejectionModal = false;
+    this.currentRejectionItem = null;
+    this.rejectionReason = '';
+  }
+
+  submitRejection(): void {
+    if (!this.currentRejectionItem || !this.rejectionReason.trim()) {
+      this.error = 'Please provide a rejection reason';
+      return;
+    }
+
+    const item = this.currentRejectionItem;
+    const approvals = this.itemApprovals.get(item.id);
+    if (!approvals || approvals.length === 0) {
+      this.error = 'Unable to find approval information for this item';
+      return;
+    }
+
+    const sprintId = approvals[0].sprintId;
+
+    this.approvalService.rejectItem(item.id, sprintId, this.rejectionReason).subscribe({
+      next: () => {
+        console.log('Item rejected successfully');
+        this.closeRejectionModal();
+        // Reload backlog to get updated status
+        this.loadBacklog();
+      },
+      error: (err) => {
+        this.error = 'Failed to reject item';
+        console.error(err);
+        this.closeRejectionModal();
+      }
+    });
   }
 }

@@ -129,16 +129,32 @@
             <span class="status-badge" [class]="item.status.toLowerCase().replace('_', '-')">
               {{ item.status.replace('_', ' ') }}
             </span>
+            <div *ngIf="isPendingApproval(item)" class="approval-status-text">
+              {{ getUserApprovalStatus(item) }}
+            </div>
           </div>
 
           <!-- Actions -->
           <div class="item-actions">
-            <button *ngIf="canEdit(item)" (click)="openEditModal(item)" class="btn-icon" title="Edit">
-              ✏️
-            </button>
-            <button *ngIf="canDelete(item)" (click)="deleteItem(item)" class="btn-icon btn-danger" title="Delete">
-              🗑️
-            </button>
+            <!-- Approval buttons for pending items -->
+            <ng-container *ngIf="isPendingApproval(item) && canApprove(item)">
+              <button (click)="approveItem(item)" class="btn-approve" title="Approve">
+                ✓ Approve
+              </button>
+              <button (click)="openRejectModal(item)" class="btn-reject" title="Reject">
+                ✗ Reject
+              </button>
+            </ng-container>
+
+            <!-- Regular actions -->
+            <ng-container *ngIf="!isPendingApproval(item)">
+              <button *ngIf="canEdit(item)" (click)="openEditModal(item)" class="btn-icon" title="Edit">
+                ✏️
+              </button>
+              <button *ngIf="canDelete(item)" (click)="deleteItem(item)" class="btn-icon btn-danger" title="Delete">
+                🗑️
+              </button>
+            </ng-container>
           </div>
         </div>
       </div>
@@ -239,6 +255,46 @@
         <button (click)="closeModal()" class="btn-secondary">Cancel</button>
         <button (click)="saveItem()" class="btn-primary" [disabled]="!currentItem.title">
           {{ isEditMode ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rejection Modal -->
+  <div *ngIf="showRejectionModal" class="modal-overlay" (click)="closeRejectionModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Reject Backlog Item</h2>
+        <button (click)="closeRejectionModal()" class="btn-close">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p *ngIf="currentRejectionItem" class="rejection-item-title">
+          <strong>{{ currentRejectionItem.title }}</strong>
+        </p>
+        <p class="rejection-info">
+          Please provide a reason for rejecting this item. This will remove it from the sprint and return it to the backlog.
+        </p>
+
+        <div class="form-group">
+          <label>Rejection Reason *</label>
+          <textarea
+            [(ngModel)]="rejectionReason"
+            class="form-control"
+            rows="4"
+            placeholder="Explain why this item should not be included in the sprint..."
+            required
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button (click)="closeRejectionModal()" class="btn-secondary">Cancel</button>
+        <button
+          (click)="submitRejection()"
+          class="btn-danger"
+          [disabled]="!rejectionReason.trim()">
+          Reject Item
         </button>
       </div>
     </div>

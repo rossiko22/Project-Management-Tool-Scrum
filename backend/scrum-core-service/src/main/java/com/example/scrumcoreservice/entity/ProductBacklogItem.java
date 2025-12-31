@@ -69,6 +69,10 @@ public class ProductBacklogItem {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "board_column", length = 20)
+    private BoardColumn boardColumn;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -85,6 +89,10 @@ public class ProductBacklogItem {
     }
 
     public enum ItemStatus {
-        BACKLOG, SPRINT_READY, IN_SPRINT, DONE, PENDING_ACCEPTANCE, ACCEPTED, REJECTED
+        BACKLOG, PENDING_APPROVAL, SPRINT_READY, IN_SPRINT, DONE, PENDING_ACCEPTANCE, ACCEPTED, REJECTED
+    }
+
+    public enum BoardColumn {
+        TO_DO, IN_PROGRESS, REVIEW, DONE
     }
 }

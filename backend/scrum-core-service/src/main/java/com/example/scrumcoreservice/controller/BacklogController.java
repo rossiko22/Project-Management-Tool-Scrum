@@ -27,14 +27,15 @@ public class BacklogController {
     private final BacklogService backlogService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Create backlog item", description = "Create a new backlog item (PO creates stories/epics, Developers create bugs/tech tasks)")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Create backlog item",
+               description = "Create a new backlog item (Product Owner only - enforces Scrum methodology)")
     public ResponseEntity<BacklogItemDto> createBacklogItem(
             @Valid @RequestBody CreateBacklogItemRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
 
-        // Determine user's primary Scrum role (simplified)
-        String userRole = principal.getRoles().contains("PRODUCT_OWNER") ? "PRODUCT_OWNER" : "DEVELOPER";
+        // User must be Product Owner per Scrum methodology
+        String userRole = "PRODUCT_OWNER";
 
         BacklogItemDto item = backlogService.createBacklogItem(request, principal.getUserId(), userRole);
         return ResponseEntity.status(HttpStatus.CREATED).body(item);

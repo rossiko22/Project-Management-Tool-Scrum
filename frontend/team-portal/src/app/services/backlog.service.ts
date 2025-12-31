@@ -21,7 +21,11 @@ export class BacklogService {
   }
 
   createBacklogItem(projectId: number, item: Partial<BacklogItem>): Observable<BacklogItem> {
-    return this.http.post<BacklogItem>(this.apiUrl, { ...item, projectId });
+    // Use project-scoped endpoint which allows both PRODUCT_OWNER and DEVELOPER roles
+    return this.http.post<BacklogItem>(
+      `${environment.scrumApiUrl}/projects/${projectId}/backlog-items`,
+      { ...item, projectId }
+    );
   }
 
   updateBacklogItem(id: number, item: Partial<BacklogItem>): Observable<BacklogItem> {

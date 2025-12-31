@@ -76,6 +76,45 @@ services:
       timeout: 5s
       retries: 5
 
+  logging-db:
+    image: postgres:15-alpine
+    container_name: logging-db
+    environment:
+      POSTGRES_DB: logging_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - logging-db-data:/var/lib/postgresql/data
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Kafka Infrastructure
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
@@ -129,6 +168,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
@@ -138,6 +179,10 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
       JWT_EXPIRATION: 28800000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: admin
+      RABBITMQ_PASSWORD: admin
     networks:
       - scrum-network
     healthcheck:
@@ -157,6 +202,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
       identity-service:
         condition: service_healthy
     ports:
@@ -168,6 +215,10 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
       SERVER_PORT: 8081
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: admin
+      RABBITMQ_PASSWORD: admin
     networks:
       - scrum-network
     healthcheck:
@@ -187,6 +238,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment:
@@ -200,6 +253,7 @@ services:
       KAFKA_BROKER: kafka:9092
       KAFKA_GROUP_ID: collaboration-service-group
       JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
     networks:
       - scrum-network
     healthcheck:
@@ -219,6 +273,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "3001:3001"
     environment:
@@ -232,10 +288,44 @@ services:
       KAFKA_BROKER: kafka:9092
       KAFKA_GROUP_ID: reporting-service-group
       JWT_SECRET: your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
     networks:
       - scrum-network
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  logging-service:
+    build:
+      context: ./backend/logging-service
+      dockerfile: Dockerfile
+    container_name: logging-service
+    depends_on:
+      logging-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DB_HOST: logging-db
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: logging_db
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      RABBITMQ_EXCHANGE: logging_exchange
+      RABBITMQ_QUEUE: logging_queue
+      RABBITMQ_ROUTING_KEY: logs
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -276,3 +366,5 @@ volumes:
   scrum-core-db-data:
   collaboration-db-data:
   reporting-db-data:
+  logging-db-data:
+  rabbitmq-data:

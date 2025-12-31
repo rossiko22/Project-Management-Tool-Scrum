@@ -58,7 +58,7 @@ export interface BacklogItem {
   title: string;
   description: string;
   type: 'STORY' | 'EPIC' | 'BUG' | 'TECHNICAL_TASK';
-  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'DONE' | 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED';
+  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'DONE' | 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED' | 'PENDING_APPROVAL';
   storyPoints?: number;
   priority: number;
   position: number;

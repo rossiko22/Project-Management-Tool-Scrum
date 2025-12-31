@@ -26,6 +26,7 @@ public class SprintService {
     private final SprintBacklogItemRepository sprintBacklogItemRepository;
     private final ProductBacklogItemRepository backlogItemRepository;
     private final EventPublisher eventPublisher;
+    private final ApprovalService approvalService;
 
     @Transactional
     public SprintDto createSprint(CreateSprintRequest request, Long userId) {
@@ -90,15 +91,39 @@ public class SprintService {
             throw new RuntimeException("Sprint must be in PLANNED status to start");
         }
 
+        // CRITICAL SCRUM VALIDATION: Sprint must have a defined Sprint Goal
+        if (sprint.getGoal() == null || sprint.getGoal().trim().isEmpty()) {
+            throw new RuntimeException("Cannot start sprint without a Sprint Goal. Please define a goal first.");
+        }
+
+        // CRITICAL SCRUM VALIDATION: Sprint must have at least one backlog item
+        List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(id);
+        if (sprintItems.isEmpty()) {
+            throw new RuntimeException("Cannot start sprint without at least one backlog item. " +
+                    "Please add items to the sprint.");
+        }
+
+        // CRITICAL SCRUM VALIDATION: All items in sprint must be ready (SPRINT_READY status)
+        for (SprintBacklogItem sbi : sprintItems) {
+            ProductBacklogItem item = backlogItemRepository.findById(sbi.getBacklogItemId())
+                    .orElseThrow(() -> new RuntimeException("Backlog item not found"));
+
+            if (item.getStatus() != ProductBacklogItem.ItemStatus.SPRINT_READY) {
+                throw new RuntimeException("Cannot start sprint: Backlog item '" + item.getTitle() +
+                        "' is not ready for sprint (status: " + item.getStatus() + "). " +
+                        "All items must have SPRINT_READY status before sprint can start.");
+            }
+        }
+
         sprint.setStatus(Sprint.SprintStatus.ACTIVE);
         sprint.setStartedAt(LocalDateTime.now());
 
-        // Update all backlog items in this sprint to IN_SPRINT status
-        List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(id);
+        // Update all backlog items in this sprint to IN_SPRINT status and set to TO_DO column
         int committedPoints = 0;
         for (SprintBacklogItem sbi : sprintItems) {
             backlogItemRepository.findById(sbi.getBacklogItemId()).ifPresent(item -> {
                 item.setStatus(ProductBacklogItem.ItemStatus.IN_SPRINT);
+                item.setBoardColumn(ProductBacklogItem.BoardColumn.TO_DO); // All items start in TO_DO
                 backlogItemRepository.save(item);
             });
             committedPoints += (sbi.getCommittedPoints() != null ? sbi.getCommittedPoints() : 0);
@@ -136,36 +161,44 @@ public class SprintService {
         sprint.setStatus(Sprint.SprintStatus.COMPLETED);
         sprint.setEndedAt(LocalDateTime.now());
 
-        // Calculate completed points and stories
+        // Calculate completed points and stories, and handle unfinished items
         List<SprintBacklogItem> sprintItems = sprintBacklogItemRepository.findBySprintId(id);
         int committedPoints = 0;
         int completedPoints = 0;
         int storiesCompleted = 0;
+        List<Long> unfinishedItemIds = new java.util.ArrayList<>();
 
         for (SprintBacklogItem sbi : sprintItems) {
             committedPoints += (sbi.getCommittedPoints() != null ? sbi.getCommittedPoints() : 0);
 
-            backlogItemRepository.findById(sbi.getBacklogItemId()).ifPresent(item -> {
-                if (item.getStatus() == ProductBacklogItem.ItemStatus.DONE ||
-                    item.getStatus() == ProductBacklogItem.ItemStatus.ACCEPTED) {
-                    // Update actual points
-                    Integer itemPoints = sbi.getActualPoints() != null ? sbi.getActualPoints() : sbi.getCommittedPoints();
-                    if (itemPoints == null && item.getStoryPoints() != null) {
-                        itemPoints = item.getStoryPoints();
-                    }
-                    sbi.setActualPoints(itemPoints != null ? itemPoints : 0);
-                    sbi.setCompletedAt(LocalDateTime.now());
-                    sprintBacklogItemRepository.save(sbi);
-                }
-            });
-        }
+            ProductBacklogItem item = backlogItemRepository.findById(sbi.getBacklogItemId())
+                    .orElseThrow(() -> new RuntimeException("Backlog item not found"));
 
-        // Count completed points and stories after updating sprint backlog items
-        for (SprintBacklogItem sbi : sprintItems) {
-            if (sbi.getCompletedAt() != null) {
+            // Check if item is DONE or ACCEPTED
+            if (item.getStatus() == ProductBacklogItem.ItemStatus.DONE ||
+                item.getStatus() == ProductBacklogItem.ItemStatus.ACCEPTED) {
+                // Item completed - update metrics
+                Integer itemPoints = sbi.getActualPoints() != null ? sbi.getActualPoints() : sbi.getCommittedPoints();
+                if (itemPoints == null && item.getStoryPoints() != null) {
+                    itemPoints = item.getStoryPoints();
+                }
+                sbi.setActualPoints(itemPoints != null ? itemPoints : 0);
+                sbi.setCompletedAt(LocalDateTime.now());
+                sprintBacklogItemRepository.save(sbi);
+
                 completedPoints += (sbi.getActualPoints() != null ? sbi.getActualPoints() : 0);
                 storiesCompleted++;
+            } else {
+                // CRITICAL: Item NOT completed - must return to backlog per Scrum rules
+                item.setStatus(ProductBacklogItem.ItemStatus.BACKLOG);
+                backlogItemRepository.save(item);
+                unfinishedItemIds.add(sbi.getBacklogItemId());
             }
+        }
+
+        // CRITICAL: Remove unfinished items from sprint_backlog_items (Scrum Reset Phase)
+        for (Long backlogItemId : unfinishedItemIds) {
+            sprintBacklogItemRepository.deleteBySprintIdAndBacklogItemId(id, backlogItemId);
         }
 
         sprint = sprintRepository.save(sprint);
@@ -216,6 +249,9 @@ public class SprintService {
             });
         }
 
+        // Cancel all pending approvals for this sprint (Scrum compliance)
+        approvalService.cancelApprovalsForSprint(id);
+
         sprint = sprintRepository.save(sprint);
 
         // Publish sprint cancelled event
@@ -235,8 +271,12 @@ public class SprintService {
         return SprintDto.fromEntity(sprint);
     }
 
+    /**
+     * Add item to sprint - triggers team approval workflow
+     * All team members except the requester must approve before item is added to sprint
+     */
     @Transactional
-    public void addItemToSprint(Long sprintId, Long backlogItemId) {
+    public void addItemToSprint(Long sprintId, Long backlogItemId, List<Long> teamMemberIds, Long requesterId) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new RuntimeException("Sprint not found"));
 
@@ -248,20 +288,36 @@ public class SprintService {
             throw new RuntimeException("Cannot add items to a completed or cancelled sprint");
         }
 
+        // Validate backlog item exists
         ProductBacklogItem item = backlogItemRepository.findById(backlogItemId)
                 .orElseThrow(() -> new RuntimeException("Backlog item not found"));
 
-        SprintBacklogItem sprintBacklogItem = SprintBacklogItem.builder()
-                .sprintId(sprintId)
-                .backlogItemId(backlogItemId)
-                .committedPoints(item.getStoryPoints())
-                .build();
+        // CRITICAL VALIDATION: Backlog item and sprint must belong to same project
+        if (!item.getProjectId().equals(sprint.getProjectId())) {
+            throw new RuntimeException("Backlog item and sprint must belong to the same project. " +
+                    "Item project: " + item.getProjectId() + ", Sprint project: " + sprint.getProjectId());
+        }
 
-        sprintBacklogItemRepository.save(sprintBacklogItem);
+        // Check if item already in sprint or pending approval
+        boolean alreadyInSprint = sprintBacklogItemRepository
+                .findBySprintId(sprintId)
+                .stream()
+                .anyMatch(sbi -> sbi.getBacklogItemId().equals(backlogItemId));
 
-        // Update item status
-        item.setStatus(ProductBacklogItem.ItemStatus.SPRINT_READY);
-        backlogItemRepository.save(item);
+        if (alreadyInSprint) {
+            throw new RuntimeException("Backlog item is already in this sprint");
+        }
+
+        if (item.getStatus() == ProductBacklogItem.ItemStatus.PENDING_APPROVAL) {
+            throw new RuntimeException("Backlog item is already pending approval for a sprint");
+        }
+
+        // Trigger team approval workflow
+        // All team members except requester must approve
+        approvalService.requestApprovals(backlogItemId, sprintId, teamMemberIds, requesterId);
+
+        System.out.println("Approval workflow initiated for item " + backlogItemId + " in sprint " + sprintId +
+                ". Waiting for team approvals.");
     }
 
     @Transactional
@@ -294,8 +350,80 @@ public class SprintService {
                 .collect(Collectors.toList());
     }
 
-    public Object getSprintBoard(Long sprintId) {
-        // Return sprint backlog items for board view
-        return getSprintBacklog(sprintId);
+    public com.example.scrumcoreservice.dto.SprintBoardDto getSprintBoard(Long sprintId) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+        List<ProductBacklogItem> allItems = getSprintBacklog(sprintId);
+
+        // Group items by board column
+        List<com.example.scrumcoreservice.dto.BacklogItemDto> toDo = new java.util.ArrayList<>();
+        List<com.example.scrumcoreservice.dto.BacklogItemDto> inProgress = new java.util.ArrayList<>();
+        List<com.example.scrumcoreservice.dto.BacklogItemDto> review = new java.util.ArrayList<>();
+        List<com.example.scrumcoreservice.dto.BacklogItemDto> done = new java.util.ArrayList<>();
+
+        for (ProductBacklogItem item : allItems) {
+            com.example.scrumcoreservice.dto.BacklogItemDto dto = com.example.scrumcoreservice.dto.BacklogItemDto.fromEntity(item);
+
+            if (item.getBoardColumn() == null) {
+                // Default to TO_DO if not set
+                toDo.add(dto);
+            } else {
+                switch (item.getBoardColumn()) {
+                    case TO_DO -> toDo.add(dto);
+                    case IN_PROGRESS -> inProgress.add(dto);
+                    case REVIEW -> review.add(dto);
+                    case DONE -> done.add(dto);
+                }
+            }
+        }
+
+        com.example.scrumcoreservice.dto.SprintBoardDto.BoardColumnsDto columns =
+                com.example.scrumcoreservice.dto.SprintBoardDto.BoardColumnsDto.builder()
+                        .toDo(toDo)
+                        .inProgress(inProgress)
+                        .review(review)
+                        .done(done)
+                        .build();
+
+        return com.example.scrumcoreservice.dto.SprintBoardDto.builder()
+                .sprintId(sprint.getId())
+                .sprintName(sprint.getName())
+                .sprintStatus(sprint.getStatus().name())
+                .columns(columns)
+                .build();
+    }
+
+    @Transactional
+    public void moveBoardItem(Long sprintId, Long backlogItemId, ProductBacklogItem.BoardColumn targetColumn) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+        // Can only move items in ACTIVE sprints
+        if (sprint.getStatus() != Sprint.SprintStatus.ACTIVE) {
+            throw new RuntimeException("Can only move items on board in ACTIVE sprints");
+        }
+
+        ProductBacklogItem item = backlogItemRepository.findById(backlogItemId)
+                .orElseThrow(() -> new RuntimeException("Backlog item not found"));
+
+        // Verify item is in this sprint
+        boolean itemInSprint = sprintBacklogItemRepository.findBySprintId(sprintId)
+                .stream()
+                .anyMatch(sbi -> sbi.getBacklogItemId().equals(backlogItemId));
+
+        if (!itemInSprint) {
+            throw new RuntimeException("Backlog item is not in this sprint");
+        }
+
+        // Update board column - items can move in ANY order per Scrum requirement
+        item.setBoardColumn(targetColumn);
+
+        // If moved to DONE, update status to DONE for PO review
+        if (targetColumn == ProductBacklogItem.BoardColumn.DONE) {
+            item.setStatus(ProductBacklogItem.ItemStatus.DONE);
+        }
+
+        backlogItemRepository.save(item);
     }
 }

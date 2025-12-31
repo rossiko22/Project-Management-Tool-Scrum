@@ -59,5 +59,12 @@ export class SprintService {
   getSprintBoard(sprintId: number): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/${sprintId}/board`);
   }
+
+  moveBoardItem(sprintId: number, backlogItemId: number, targetColumn: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/${sprintId}/board/move`, {
+      backlogItemId,
+      targetColumn
+    });
+  }
 }
 

@@ -98,17 +98,40 @@ export class BoardComponent implements OnInit {
 
     this.sprintService.getSprintBoard(this.currentSprint.id).subscribe({
       next: (boardData: any) => {
+        console.log('Sprint board data received:', boardData);
+
         // Reset columns
         this.columns.forEach(col => col.tasks = []);
 
-        // Distribute tasks to columns
-        if (boardData.tasks) {
-          boardData.tasks.forEach((task: Task) => {
-            const column = this.columns.find(c => c.status === task.status);
-            if (column) {
-              column.tasks.push(task);
-            }
-          });
+        // Backend returns columns with backlog items, we need to convert them to tasks
+        if (boardData.columns) {
+          // Map toDo items
+          if (boardData.columns.toDo) {
+            boardData.columns.toDo.forEach((item: BacklogItem) => {
+              this.columns[0].tasks.push(this.backlogItemToTask(item));
+            });
+          }
+
+          // Map inProgress items
+          if (boardData.columns.inProgress) {
+            boardData.columns.inProgress.forEach((item: BacklogItem) => {
+              this.columns[1].tasks.push(this.backlogItemToTask(item));
+            });
+          }
+
+          // Map review items
+          if (boardData.columns.review) {
+            boardData.columns.review.forEach((item: BacklogItem) => {
+              this.columns[2].tasks.push(this.backlogItemToTask(item));
+            });
+          }
+
+          // Map done items
+          if (boardData.columns.done) {
+            boardData.columns.done.forEach((item: BacklogItem) => {
+              this.columns[3].tasks.push(this.backlogItemToTask(item));
+            });
+          }
         }
 
         this.loading = false;
@@ -116,17 +139,40 @@ export class BoardComponent implements OnInit {
       error: (err) => {
         this.error = 'Failed to load sprint board';
         this.loading = false;
-        console.error(err);
+        console.error('Error loading sprint board:', err);
       }
     });
+  }
+
+  // Convert BacklogItem to Task format for display
+  private backlogItemToTask(item: BacklogItem): Task {
+    return {
+      id: item.id,
+      backlogItemId: item.id,
+      title: item.title,
+      description: item.description,
+      status: this.mapBacklogStatusToTaskStatus(item),
+      assigneeId: undefined, // BacklogItems don't have assignees, tasks do
+      estimatedHours: item.storyPoints ? item.storyPoints * 8 : undefined
+    } as Task;
+  }
+
+  // Map backlog item to task status based on current board column
+  private mapBacklogStatusToTaskStatus(item: BacklogItem): Task['status'] {
+    // Since backlog items don't have board_column info in the DTO,
+    // we'll determine this from which column list they came from
+    // This is handled in loadSprintBoard by pushing to the right column
+    return 'TO_DO'; // Default, will be overridden by column assignment
   }
 
   onDrop(event: CdkDragDrop<Task[]>, targetColumn: BoardColumn): void {
     const task = event.item.data;
 
-    // Only developers can update task status, and only their own tasks
+    // Check if user can move items on the board
     if (!this.canMoveTask(task)) {
-      console.warn('You can only move tasks assigned to you');
+      console.warn('You do not have permission to move items on the board');
+      // Reload to reset UI
+      this.loadSprintBoard();
       return;
     }
 
@@ -142,31 +188,29 @@ export class BoardComponent implements OnInit {
         event.currentIndex
       );
 
-      // Update task status on backend
-      this.updateTaskStatus(task, targetColumn.status);
+      // Update backlog item board column on backend
+      this.updateBoardItemColumn(task, targetColumn.status);
     }
   }
 
   canMoveTask(task: Task): boolean {
-    // Only developers can move tasks
-    if (!this.authService.hasRole('DEVELOPER')) {
-      return false;
-    }
-
-    // Developers can only move their own assigned tasks
-    const currentUserId = this.authService.currentUserValue?.id;
-    return task.assigneeId === currentUserId;
+    // Developers, Scrum Masters, and Product Owners can move items
+    return this.authService.hasRole('DEVELOPER') ||
+           this.authService.hasRole('SCRUM_MASTER') ||
+           this.authService.hasRole('PRODUCT_OWNER');
   }
 
-  updateTaskStatus(task: Task, newStatus: Task['status']): void {
-    this.taskService.updateTaskStatus(task.id, newStatus).subscribe({
-      next: (updatedTask) => {
+  updateBoardItemColumn(task: Task, newStatus: Task['status']): void {
+    if (!this.currentSprint) return;
+
+    this.sprintService.moveBoardItem(this.currentSprint.id, task.backlogItemId, newStatus).subscribe({
+      next: () => {
         task.status = newStatus;
-        console.log('Task status updated successfully');
+        console.log('Board item moved successfully to', newStatus);
       },
       error: (err) => {
-        console.error('Failed to update task status', err);
-        // Reload board on error
+        console.error('Failed to move board item', err);
+        // Reload board on error to reset UI
         this.loadSprintBoard();
       }
     });
