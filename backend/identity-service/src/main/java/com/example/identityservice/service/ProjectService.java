@@ -160,11 +160,11 @@ public class ProjectService {
     }
 
     public List<Project> getAllProjects() {
-        return projectRepository.findAll();
+        return projectRepository.findAllWithTeams();
     }
 
     public Project getProjectById(Long id) {
-        return projectRepository.findById(id)
+        return projectRepository.findByIdWithTeam(id)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
     }
 
@@ -176,6 +176,6 @@ public class ProjectService {
         if (projectIds == null || projectIds.isEmpty()) {
             return List.of();
         }
-        return projectRepository.findAllById(projectIds);
+        return projectRepository.findByIdsWithTeams(projectIds);
     }
 }

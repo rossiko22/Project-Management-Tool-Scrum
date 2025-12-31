@@ -5,11 +5,13 @@ import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { BacklogService } from '../../services/backlog.service';
+import { SprintService } from '../../services/sprint.service';
+import { ProjectService } from '../../services/project.service';
 import { ProjectContextService } from '../../services/project-context.service';
 import { AuthService } from '../../services/auth.service';
 import { ApprovalService, BacklogItemApproval } from '../../services/approval.service';
-import { BacklogItem } from '../../models/sprint.model';
-import { Project } from '../../models/project.model';
+import { BacklogItem, Sprint } from '../../models/sprint.model';
+import { Project, Team, TeamMember } from '../../models/project.model';
 
 @Component({
   selector: 'app-backlog',
@@ -38,7 +40,17 @@ export class BacklogComponent implements OnInit, OnDestroy {
 
   // Item types
   itemTypes = ['STORY', 'EPIC', 'BUG', 'TECHNICAL_TASK'];
+  // Only BACKLOG and SPRINT_READY allowed during creation
+  createItemStatuses = ['BACKLOG', 'SPRINT_READY'];
   itemStatuses = ['BACKLOG', 'SPRINT_READY', 'IN_SPRINT', 'DONE', 'PENDING_APPROVAL'];
+
+  // Sprint selection for SPRINT_READY items
+  plannedSprints: Sprint[] = [];
+  selectedSprintId: number | null = null;
+  showSprintSelection = false;
+
+  // Team members for approval workflow
+  teamMembers: any[] = [];
 
   // Approval tracking
   itemApprovals: Map<number, BacklogItemApproval[]> = new Map();
@@ -48,6 +60,8 @@ export class BacklogComponent implements OnInit, OnDestroy {
 
   constructor(
     private backlogService: BacklogService,
+    private sprintService: SprintService,
+    private projectService: ProjectService,
     private projectContext: ProjectContextService,
     public authService: AuthService,
     private approvalService: ApprovalService
@@ -146,6 +160,13 @@ export class BacklogComponent implements OnInit, OnDestroy {
       priority: 0,
       position: this.backlogItems.length
     };
+    this.selectedSprintId = null;
+    this.showSprintSelection = false;
+
+    // Load planned sprints and team members for potential sprint selection
+    this.loadPlannedSprints();
+    this.loadTeamMembers();
+
     this.showModal = true;
   }
 
@@ -163,6 +184,18 @@ export class BacklogComponent implements OnInit, OnDestroy {
   saveItem(): void {
     if (!this.selectedProject || !this.currentItem.title) return;
 
+    // Validate SPRINT_READY requirements
+    if (this.currentItem.status === 'SPRINT_READY') {
+      if (!this.selectedSprintId) {
+        this.error = 'Please select a sprint when status is SPRINT_READY';
+        return;
+      }
+      if (this.teamMembers.length === 0) {
+        this.error = 'No team members found for approval workflow';
+        return;
+      }
+    }
+
     if (this.isEditMode && this.currentItem.id) {
       // Update existing item
       this.backlogService.updateBacklogItem(this.currentItem.id, this.currentItem).subscribe({
@@ -176,8 +209,15 @@ export class BacklogComponent implements OnInit, OnDestroy {
         }
       });
     } else {
-      // Create new item
-      this.backlogService.createBacklogItem(this.selectedProject.id, this.currentItem).subscribe({
+      // Create new item with sprint and team member info if SPRINT_READY
+      const itemData: any = { ...this.currentItem };
+
+      if (this.currentItem.status === 'SPRINT_READY' && this.selectedSprintId) {
+        itemData.sprintId = this.selectedSprintId;
+        itemData.assignedDeveloperIds = this.teamMembers.map(m => m.id);
+      }
+
+      this.backlogService.createBacklogItem(this.selectedProject.id, itemData).subscribe({
         next: () => {
           this.closeModal();
           this.loadBacklog();
@@ -285,6 +325,81 @@ export class BacklogComponent implements OnInit, OnDestroy {
       case 'BUG': return 'bug';
       case 'TECHNICAL_TASK': return 'tech';
       default: return '';
+    }
+  }
+
+  // Sprint and team loading methods
+  loadPlannedSprints(): void {
+    if (!this.selectedProject) return;
+
+    this.sprintService.getProjectSprints(this.selectedProject.id).subscribe({
+      next: (sprints) => {
+        // Filter only PLANNED sprints
+        this.plannedSprints = sprints.filter(s => s.status === 'PLANNED');
+      },
+      error: (err) => {
+        console.error('Failed to load sprints', err);
+        this.plannedSprints = [];
+      }
+    });
+  }
+
+  loadTeamMembers(): void {
+    if (!this.selectedProject) return;
+
+    const members: { id: number; role: string }[] = [];
+    const project = this.selectedProject as any; // Cast to access team property
+
+    console.log('=== LOAD TEAM MEMBERS DEBUG ===');
+    console.log('Project:', project);
+    console.log('Team object:', project.team);
+
+    // Get team data from the project object (it's embedded in the project response)
+    if (project.team) {
+      const team = project.team;
+
+      console.log('Team.productOwner:', team.productOwner);
+      console.log('Team.scrumMaster:', team.scrumMaster);
+      console.log('Team.developers:', team.developers);
+
+      // Add Product Owner (they need to approve if a developer creates the item)
+      if (team.productOwner && team.productOwner.id != null) {
+        console.log('Adding Product Owner:', team.productOwner.id);
+        members.push({ id: team.productOwner.id, role: 'PRODUCT_OWNER' });
+      }
+
+      // Add all Developers
+      if (team.developers && Array.isArray(team.developers)) {
+        console.log('Processing developers array, length:', team.developers.length);
+        team.developers.forEach((developer: any) => {
+          console.log('Developer:', developer);
+          if (developer.id != null) {
+            console.log('Adding developer:', developer.id);
+            members.push({ id: developer.id, role: 'DEVELOPER' });
+          }
+        });
+      } else {
+        console.log('No developers array or not an array');
+      }
+
+      // Note: We deliberately EXCLUDE Scrum Master from approval workflow
+      // The backend will exclude the creator automatically
+    } else {
+      console.log('No team object found');
+    }
+
+    this.teamMembers = members;
+    console.log('Final team members for approval:', this.teamMembers);
+    console.log('=== END LOAD TEAM MEMBERS DEBUG ===');
+  }
+
+  onStatusChange(): void {
+    // Show sprint selection only when status is SPRINT_READY
+    this.showSprintSelection = this.currentItem.status === 'SPRINT_READY';
+
+    // Reset sprint selection if status changed to BACKLOG
+    if (!this.showSprintSelection) {
+      this.selectedSprintId = null;
     }
   }
 

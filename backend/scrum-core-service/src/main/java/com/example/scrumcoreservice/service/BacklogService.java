@@ -3,8 +3,10 @@ package com.example.scrumcoreservice.service;
 import com.example.scrumcoreservice.dto.BacklogItemDto;
 import com.example.scrumcoreservice.dto.CreateBacklogItemRequest;
 import com.example.scrumcoreservice.entity.ProductBacklogItem;
+import com.example.scrumcoreservice.entity.Sprint;
 import com.example.scrumcoreservice.events.BacklogItemEvent;
 import com.example.scrumcoreservice.repository.ProductBacklogItemRepository;
+import com.example.scrumcoreservice.repository.SprintRepository;
 import com.example.scrumcoreservice.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,11 +22,47 @@ import java.util.stream.Collectors;
 public class BacklogService {
 
     private final ProductBacklogItemRepository backlogItemRepository;
+    private final SprintRepository sprintRepository;
     private final JwtUtil jwtUtil;
     private final EventPublisher eventPublisher;
+    private final ApprovalService approvalService;
 
     @Transactional
     public BacklogItemDto createBacklogItem(CreateBacklogItemRequest request, Long userId, String userRole) {
+        // Validate status - only BACKLOG or SPRINT_READY allowed
+        ProductBacklogItem.ItemStatus initialStatus = ProductBacklogItem.ItemStatus.BACKLOG;
+
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            String requestedStatus = request.getStatus().toUpperCase();
+            if (!requestedStatus.equals("BACKLOG") && !requestedStatus.equals("SPRINT_READY")) {
+                throw new RuntimeException("Invalid status. Only BACKLOG or SPRINT_READY allowed during creation.");
+            }
+            initialStatus = ProductBacklogItem.ItemStatus.valueOf(requestedStatus);
+        }
+
+        // If SPRINT_READY status requested, validate sprint and team members
+        if (initialStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
+            if (request.getSprintId() == null) {
+                throw new RuntimeException("Sprint ID is required when status is SPRINT_READY");
+            }
+            if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
+                throw new RuntimeException("Team member IDs are required when status is SPRINT_READY");
+            }
+
+            // Validate sprint exists and is in PLANNED state
+            Sprint sprint = sprintRepository.findById(request.getSprintId())
+                    .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+            if (sprint.getStatus() != Sprint.SprintStatus.PLANNED) {
+                throw new RuntimeException("Can only add items to sprints in PLANNED status");
+            }
+
+            // Validate sprint belongs to same project
+            if (!sprint.getProjectId().equals(request.getProjectId())) {
+                throw new RuntimeException("Sprint and backlog item must belong to the same project");
+            }
+        }
+
         Integer maxPosition = backlogItemRepository.findMaxPositionByProjectId(request.getProjectId());
         int newPosition = (maxPosition != null) ? maxPosition + 1 : 0;
 
@@ -36,13 +74,28 @@ public class BacklogService {
                 .storyPoints(request.getStoryPoints())
                 .priority(request.getPriority() != null ? request.getPriority() : 0)
                 .position(newPosition)
-                .status(ProductBacklogItem.ItemStatus.BACKLOG)
+                .status(initialStatus)
                 .acceptanceCriteria(request.getAcceptanceCriteria())
                 .createdBy(userId)
                 .createdByRole(userRole)
                 .build();
 
         item = backlogItemRepository.save(item);
+
+        // If SPRINT_READY status, initiate approval workflow
+        if (initialStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
+            approvalService.requestApprovals(
+                    item.getId(),
+                    request.getSprintId(),
+                    request.getAssignedDeveloperIds(),
+                    userId
+            );
+
+            // Note: requestApprovals will set status to PENDING_APPROVAL
+            // Reload the item to get updated status
+            item = backlogItemRepository.findById(item.getId())
+                    .orElseThrow(() -> new RuntimeException("Failed to reload created item"));
+        }
 
         // Publish backlog item created event
         BacklogItemEvent event = BacklogItemEvent.builder()

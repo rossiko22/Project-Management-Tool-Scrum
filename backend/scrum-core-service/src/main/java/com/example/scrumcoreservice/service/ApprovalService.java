@@ -57,6 +57,14 @@ public class ApprovalService {
 
         // Create approval request for each team member EXCEPT the requester
         for (Long memberId : teamMemberIds) {
+            // Skip null member IDs
+            if (memberId == null) {
+                log.warn("Skipping null member ID in approval request for backlog item {} in sprint {}",
+                        backlogItemId, sprintId);
+                continue;
+            }
+
+            // Skip the requester
             if (memberId.equals(requesterId)) {
                 log.info("Skipping approval request for requester {} for backlog item {} in sprint {}",
                         memberId, backlogItemId, sprintId);

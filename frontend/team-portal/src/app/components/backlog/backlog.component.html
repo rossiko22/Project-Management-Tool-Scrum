@@ -241,19 +241,45 @@
 
           <div class="form-group">
             <label>Status</label>
-            <select [(ngModel)]="currentItem.status" class="form-control">
-              <option value="BACKLOG">Backlog</option>
-              <option value="SPRINT_READY">Sprint Ready</option>
-              <option value="IN_SPRINT">In Sprint</option>
-              <option value="DONE">Done</option>
+            <select [(ngModel)]="currentItem.status" (change)="onStatusChange()" class="form-control">
+              <!-- Only BACKLOG and SPRINT_READY allowed during creation -->
+              <ng-container *ngIf="!isEditMode">
+                <option *ngFor="let status of createItemStatuses" [value]="status">
+                  {{ status.replace('_', ' ') }}
+                </option>
+              </ng-container>
+              <!-- All statuses available during edit -->
+              <ng-container *ngIf="isEditMode">
+                <option *ngFor="let status of itemStatuses" [value]="status">
+                  {{ status.replace('_', ' ') }}
+                </option>
+              </ng-container>
             </select>
+            <small class="form-hint" *ngIf="!isEditMode">
+              Select "Sprint Ready" to propose this item for a planned sprint
+            </small>
           </div>
+        </div>
+
+        <!-- Sprint Selection (only shown when status is SPRINT_READY during creation) -->
+        <div class="form-group" *ngIf="showSprintSelection && !isEditMode">
+          <label>Select Sprint *</label>
+          <select [(ngModel)]="selectedSprintId" class="form-control" required>
+            <option [ngValue]="null">-- Choose a planned sprint --</option>
+            <option *ngFor="let sprint of plannedSprints" [value]="sprint.id">
+              {{ sprint.name }} ({{ sprint.startDate | date }} - {{ sprint.endDate | date }})
+            </option>
+          </select>
+          <small class="form-hint">
+            <span *ngIf="plannedSprints.length === 0" class="text-warning">⚠️ No planned sprints available. Create a sprint first.</span>
+            <span *ngIf="plannedSprints.length > 0">All team members will be requested to approve this item for the selected sprint</span>
+          </small>
         </div>
       </div>
 
       <div class="modal-footer">
         <button (click)="closeModal()" class="btn-secondary">Cancel</button>
-        <button (click)="saveItem()" class="btn-primary" [disabled]="!currentItem.title">
+        <button (click)="saveItem()" class="btn-primary" [disabled]="!currentItem.title || (showSprintSelection && !selectedSprintId)">
           {{ isEditMode ? 'Update' : 'Create' }}
         </button>
       </div>
