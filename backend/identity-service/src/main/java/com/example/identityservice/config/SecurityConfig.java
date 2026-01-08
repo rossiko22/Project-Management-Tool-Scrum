@@ -40,7 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
 
                         // Swagger + Actuator (optional)
-                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/actuator/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/api-docs/**", "/v3/api-docs/**", "/actuator/**").permitAll()
 
                         // Everything else requires authentication
                         .anyRequest().authenticated()

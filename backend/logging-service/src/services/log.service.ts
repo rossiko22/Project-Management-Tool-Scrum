@@ -1,5 +1,5 @@
 import pool from '../config/database';
-import { Log, formatLogForDisplay } from '../models/Log';
+import { Log } from '../models/Log';
 
 export class LogService {
   async saveLogs(logs: Log[]): Promise<number> {
@@ -26,7 +26,7 @@ export class LogService {
     }
   }
 
-  async getLogsByDateRange(dateFrom: Date, dateTo: Date): Promise<string[]> {
+  async getLogsByDateRange(dateFrom: Date, dateTo: Date): Promise<Log[]> {
     const client = await pool.connect();
     try {
       const result = await client.query(
@@ -36,9 +36,8 @@ export class LogService {
         [dateFrom, dateTo]
       );
 
-      const formattedLogs = result.rows.map((row: Log) => formatLogForDisplay(row));
-      console.log(`Retrieved ${formattedLogs.length} logs from ${dateFrom} to ${dateTo}`);
-      return formattedLogs;
+      console.log(`Retrieved ${result.rows.length} logs from ${dateFrom} to ${dateTo}`);
+      return result.rows;
     } catch (error) {
       console.error('Error retrieving logs:', error);
       throw error;

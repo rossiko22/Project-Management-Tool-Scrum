@@ -1,0 +1,194 @@
+# Render Blueprint for Scrum Management System
+# This file defines all services and databases for deployment
+
+databases:
+  - name: scrum-postgres-db
+    databaseName: scrum_db
+    user: scrum_user
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: 15
+
+services:
+  # Backend Java Services
+  - type: web
+    name: identity-service
+    runtime: image
+    image:
+      url: docker.io/$DOCKER_USERNAME/scrum-identity-service:latest
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://scrum-postgres-db:5432/scrum_db
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: scrum-postgres-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: scrum-postgres-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION
+        value: "28800000"
+      - key: SERVER_PORT
+        value: "8080"
+    healthCheckPath: /actuator/health
+
+  - type: web
+    name: scrum-core-service
+    runtime: image
+    image:
+      url: docker.io/$DOCKER_USERNAME/scrum-scrum-core-service:latest
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://scrum-postgres-db:5432/scrum_db
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: scrum-postgres-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: scrum-postgres-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: SERVER_PORT
+        value: "8081"
+    healthCheckPath: /api/actuator/health
+
+  # Backend Node.js Services
+  - type: web
+    name: collaboration-service
+    runtime: image
+    image:
+      url: docker.io/$DOCKER_USERNAME/scrum-collaboration-service:latest
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: DB_HOST
+        fromDatabase:
+          name: scrum-postgres-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: scrum-postgres-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: scrum-postgres-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: scrum-postgres-db
+          property: password
+      - key: DB_NAME
+        value: scrum_db
+      - key: JWT_SECRET
+        sync: false
+    healthCheckPath: /health
+
+  - type: web
+    name: reporting-service
+    runtime: image
+    image:
+      url: docker.io/$DOCKER_USERNAME/scrum-reporting-service:latest
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
+      - key: DB_HOST
+        fromDatabase:
+          name: scrum-postgres-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: scrum-postgres-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: scrum-postgres-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: scrum-postgres-db
+          property: password
+      - key: DB_NAME
+        value: scrum_db
+    healthCheckPath: /api/health
+
+  - type: web
+    name: logging-service
+    runtime: image
+    image:
+      url: docker.io/$DOCKER_USERNAME/scrum-logging-service:latest
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3002"
+      - key: DB_HOST
+        fromDatabase:
+          name: scrum-postgres-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: scrum-postgres-db
+          property: port
+      - key: DB_USER
+        fromDatabase:
+          name: scrum-postgres-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: scrum-postgres-db
+          property: password
+      - key: DB_NAME
+        value: scrum_db
+    healthCheckPath: /health
+
+  # Frontend Applications (Static Sites)
+  - type: web
+    name: admin-portal
+    runtime: static
+    buildCommand: cd frontend/admin-portal && npm ci && npm run build
+    staticPublishPath: frontend/admin-portal/dist/admin-portal/browser
+    plan: free
+    region: frankfurt
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: team-portal
+    runtime: static
+    buildCommand: cd frontend/team-portal && npm ci && npm run build
+    staticPublishPath: frontend/team-portal/dist/team-portal/browser
+    plan: free
+    region: frankfurt
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=0, must-revalidate
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

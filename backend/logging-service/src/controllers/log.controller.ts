@@ -97,14 +97,14 @@ export class LogController {
   async getHealth(_req: Request, res: Response): Promise<void> {
     try {
       const logCount = await logService.getLogCount();
-      const rabbitmqActive = rabbitmqService.isActive();
 
       res.status(200).json({
         status: 'healthy',
         service: 'logging-service',
         database: 'connected',
-        rabbitmq: rabbitmqActive ? 'consuming' : 'connected',
+        rabbitmq: 'connected (repository mode)',
         logCount,
+        message: 'RabbitMQ is acting as a log repository. Call POST /logs to download and store logs.',
       });
     } catch (error) {
       res.status(500).json({

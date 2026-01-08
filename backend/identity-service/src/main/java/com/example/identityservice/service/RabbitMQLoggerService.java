@@ -50,12 +50,11 @@ public class RabbitMQLoggerService {
             logMessage.put("applicationName", APPLICATION_NAME);
             logMessage.put("message", message);
 
-            String jsonMessage = objectMapper.writeValueAsString(logMessage);
-
+            // Send the Map directly - RabbitTemplate with Jackson2JsonMessageConverter will handle JSON conversion
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.LOGGING_EXCHANGE,
                     RabbitMQConfig.LOGGING_ROUTING_KEY,
-                    jsonMessage
+                    logMessage
             );
 
             log.debug("Sent log to RabbitMQ: {} {} Correlation: {} [{}] - {}",

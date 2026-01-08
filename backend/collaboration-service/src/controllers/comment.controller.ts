@@ -2,6 +2,7 @@ import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Request, Qu
 import { CommentService } from '../services/comment.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { EntityType } from '../entities/comment.entity';
+import { rabbitMQLogger } from '../utils/rabbitmq-logger';
 
 @Controller('comments')
 @UseGuards(JwtAuthGuard)
@@ -13,13 +14,23 @@ export class CommentController {
     @Body() body: { entityType: EntityType; entityId: number; content: string; parentCommentId?: number },
     @Request() req,
   ) {
-    return this.commentService.createComment(
-      req.user.userId,
-      body.entityType,
-      body.entityId,
-      body.content,
-      body.parentCommentId,
-    );
+    const url = `/comments`;
+    rabbitMQLogger.logInfo(`Creating comment on ${body.entityType} ${body.entityId} by user ${req.user.userId}`, url);
+
+    try {
+      const result = await this.commentService.createComment(
+        req.user.userId,
+        body.entityType,
+        body.entityId,
+        body.content,
+        body.parentCommentId,
+      );
+      rabbitMQLogger.logInfo(`Comment created successfully with ID ${result.id}`, url);
+      return result;
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to create comment: ${error.message}`, url);
+      throw error;
+    }
   }
 
   @Get('thread/:entityType/:entityId')
@@ -27,7 +38,17 @@ export class CommentController {
     @Param('entityType') entityType: EntityType,
     @Param('entityId') entityId: number,
   ) {
-    return this.commentService.getCommentsByEntity(entityType, entityId);
+    const url = `/comments/thread/${entityType}/${entityId}`;
+    rabbitMQLogger.logInfo(`Retrieving comments for ${entityType} ${entityId}`, url);
+
+    try {
+      const result = await this.commentService.getCommentsByEntity(entityType, entityId);
+      rabbitMQLogger.logInfo(`Retrieved ${result.length} comments`, url);
+      return result;
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to retrieve comments: ${error.message}`, url);
+      throw error;
+    }
   }
 
   @Put(':id')
@@ -35,12 +56,31 @@ export class CommentController {
     @Param('id') id: number,
     @Body() body: { content: string },
   ) {
-    return this.commentService.updateComment(id, body.content);
+    const url = `/comments/${id}`;
+    rabbitMQLogger.logInfo(`Updating comment ${id}`, url);
+
+    try {
+      const result = await this.commentService.updateComment(id, body.content);
+      rabbitMQLogger.logInfo(`Comment ${id} updated successfully`, url);
+      return result;
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to update comment ${id}: ${error.message}`, url);
+      throw error;
+    }
   }
 
   @Delete(':id')
   async deleteComment(@Param('id') id: number) {
-    await this.commentService.softDeleteComment(id);
-    return { message: 'Comment deleted successfully' };
+    const url = `/comments/${id}`;
+    rabbitMQLogger.logInfo(`Deleting comment ${id}`, url);
+
+    try {
+      await this.commentService.softDeleteComment(id);
+      rabbitMQLogger.logInfo(`Comment ${id} deleted successfully`, url);
+      return { message: 'Comment deleted successfully' };
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to delete comment ${id}: ${error.message}`, url);
+      throw error;
+    }
   }
 }

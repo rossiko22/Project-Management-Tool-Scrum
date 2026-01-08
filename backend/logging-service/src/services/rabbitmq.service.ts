@@ -22,18 +22,21 @@ export class RabbitMQService {
           if (msg) {
             try {
               const content = msg.content.toString();
+              console.log('Received message from RabbitMQ:', content.substring(0, 200));
               const log = parseLogMessage(content);
 
               if (log) {
                 await logService.saveLogs([log]);
                 this.channel?.ack(msg);
+                console.log('Successfully processed and saved log');
               } else {
-                console.warn('Failed to parse log message, rejecting:', content);
+                console.warn('Failed to parse log message, rejecting');
+                console.warn('Message content:', content);
                 this.channel?.nack(msg, false, false); // Reject and don't requeue
               }
             } catch (error) {
               console.error('Error processing message:', error);
-              this.channel?.nack(msg, false, true); // Reject and requeue
+              this.channel?.nack(msg, false, false); // Reject and don't requeue (changed from requeue)
             }
           }
         },

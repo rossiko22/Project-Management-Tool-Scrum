@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { rabbitMQLogger } from './utils/rabbitmq-logger';
 
 async function bootstrap() {
@@ -22,6 +23,16 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // Swagger configuration
+  const config = new DocumentBuilder()
+    .setTitle('Reporting Service API')
+    .setDescription('API documentation for the Reporting Service - handles velocity tracking, burndown charts, and sprint metrics')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api-docs', app, document);
+
   // Initialize RabbitMQ logger
   try {
     await rabbitMQLogger.connect();
@@ -33,6 +44,7 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`Reporting Service is running on port ${port}`);
+  console.log(`Swagger UI available at http://localhost:${port}/api-docs`);
 }
 
 bootstrap();
