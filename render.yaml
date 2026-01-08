@@ -167,7 +167,6 @@ services:
     buildCommand: cd frontend/admin-portal && npm ci && npm run build
     staticPublishPath: frontend/admin-portal/dist/admin-portal/browser
     plan: free
-    region: frankfurt
     headers:
       - path: /*
         name: Cache-Control
@@ -183,7 +182,6 @@ services:
     buildCommand: cd frontend/team-portal && npm ci && npm run build
     staticPublishPath: frontend/team-portal/dist/team-portal/browser
     plan: free
-    region: frankfurt
     headers:
       - path: /*
         name: Cache-Control
