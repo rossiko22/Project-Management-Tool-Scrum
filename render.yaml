@@ -15,7 +15,7 @@ services:
     name: identity-service
     runtime: image
     image:
-      url: docker.io/$DOCKER_USERNAME/scrum-identity-service:latest
+      url: docker.io/marko222/scrum-identity-service:latest
     plan: free
     region: frankfurt
     envVars:
@@ -29,7 +29,7 @@ services:
         fromDatabase:
           name: scrum-postgres-db
           property: password
-      - key: JWT_SECRET
+      - key:  your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
         generateValue: true
       - key: JWT_EXPIRATION
         value: "28800000"
@@ -41,7 +41,7 @@ services:
     name: scrum-core-service
     runtime: image
     image:
-      url: docker.io/$DOCKER_USERNAME/scrum-scrum-core-service:latest
+      url: docker.io/marko222/scrum-scrum-core-service:latest
     plan: free
     region: frankfurt
     envVars:
@@ -55,7 +55,7 @@ services:
         fromDatabase:
           name: scrum-postgres-db
           property: password
-      - key: JWT_SECRET
+      - key:  your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
         sync: false
       - key: SERVER_PORT
         value: "8081"
@@ -66,7 +66,7 @@ services:
     name: collaboration-service
     runtime: image
     image:
-      url: docker.io/$DOCKER_USERNAME/scrum-collaboration-service:latest
+      url: docker.io/marko222/scrum-collaboration-service:latest
     plan: free
     region: frankfurt
     envVars:
@@ -92,7 +92,7 @@ services:
           property: password
       - key: DB_NAME
         value: scrum_db
-      - key: JWT_SECRET
+      - key:  your-secret-key-change-in-production-must-be-at-least-256-bits-long-for-hs256
         sync: false
     healthCheckPath: /health
 
@@ -100,7 +100,7 @@ services:
     name: reporting-service
     runtime: image
     image:
-      url: docker.io/$DOCKER_USERNAME/scrum-reporting-service:latest
+      url: docker.io/marko222/scrum-reporting-service:latest
     plan: free
     region: frankfurt
     envVars:
@@ -132,7 +132,7 @@ services:
     name: logging-service
     runtime: image
     image:
-      url: docker.io/$DOCKER_USERNAME/scrum-logging-service:latest
+      url: docker.io/marko222/scrum-logging-service:latest
     plan: free
     region: frankfurt
     envVars:
