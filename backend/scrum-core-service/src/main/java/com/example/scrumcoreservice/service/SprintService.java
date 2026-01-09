@@ -419,10 +419,14 @@ public class SprintService {
         // Update board column - items can move in ANY order per Scrum requirement
         item.setBoardColumn(targetColumn);
 
+
+
         // If moved to DONE, update status to DONE for PO review
         if (targetColumn == ProductBacklogItem.BoardColumn.DONE) {
             item.setStatus(ProductBacklogItem.ItemStatus.DONE);
         }
+
+
 
         backlogItemRepository.save(item);
     }

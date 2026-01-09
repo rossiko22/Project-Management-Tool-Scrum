@@ -45,6 +45,7 @@ public class ApprovalController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+
     @PostMapping("/{backlogItemId}/sprint/{sprintId}/approve")
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Approve backlog item for sprint",

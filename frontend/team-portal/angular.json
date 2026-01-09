@@ -68,7 +68,8 @@
               "buildTarget": "team-portal:build:production"
             },
             "development": {
-              "buildTarget": "team-portal:build:development"
+              "buildTarget": "team-portal:build:development",
+              "port": 4201
             }
           },
           "defaultConfiguration": "development"

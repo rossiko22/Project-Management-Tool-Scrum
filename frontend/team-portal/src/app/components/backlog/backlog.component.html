@@ -44,7 +44,7 @@
         <option value="BACKLOG">Backlog</option>
         <option value="SPRINT_READY">Sprint Ready</option>
         <option value="IN_SPRINT">In Sprint</option>
-        <option value="DONE">Done</option>
+        <option value="PENDING_APPROVAL">Pending Approval</option>
       </select>
     </div>
   </div>
@@ -255,14 +255,14 @@
                 </option>
               </ng-container>
             </select>
-            <small class="form-hint" *ngIf="!isEditMode">
+            <small class="form-hint">
               Select "Sprint Ready" to propose this item for a planned sprint
             </small>
           </div>
         </div>
 
-        <!-- Sprint Selection (only shown when status is SPRINT_READY during creation) -->
-        <div class="form-group" *ngIf="showSprintSelection && !isEditMode">
+        <!-- Sprint Selection (shown when status is SPRINT_READY) -->
+        <div class="form-group" *ngIf="showSprintSelection">
           <label>Select Sprint *</label>
           <select [(ngModel)]="selectedSprintId" class="form-control" required>
             <option [ngValue]="null">-- Choose a planned sprint --</option>

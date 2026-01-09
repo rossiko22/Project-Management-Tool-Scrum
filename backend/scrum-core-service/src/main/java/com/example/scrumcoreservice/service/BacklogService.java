@@ -135,12 +135,64 @@ public class BacklogService {
         boolean storyPointsChanged = item.getStoryPoints() != null &&
                                      !item.getStoryPoints().equals(request.getStoryPoints());
 
+        ProductBacklogItem.ItemStatus oldStatus = item.getStatus();
+
         item.setTitle(request.getTitle());
         item.setDescription(request.getDescription());
         item.setType(ProductBacklogItem.ItemType.valueOf(request.getType()));
         item.setStoryPoints(request.getStoryPoints());
         item.setPriority(request.getPriority());
         item.setAcceptanceCriteria(request.getAcceptanceCriteria());
+
+        // Handle status change to SPRINT_READY
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            String requestedStatus = request.getStatus().toUpperCase();
+            ProductBacklogItem.ItemStatus newStatus = ProductBacklogItem.ItemStatus.valueOf(requestedStatus);
+
+            // If changing from BACKLOG to SPRINT_READY, validate and initiate approval workflow
+            if (oldStatus == ProductBacklogItem.ItemStatus.BACKLOG &&
+                newStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
+
+                if (request.getSprintId() == null) {
+                    throw new RuntimeException("Sprint ID is required when status is SPRINT_READY");
+                }
+                if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
+                    throw new RuntimeException("Team member IDs are required when status is SPRINT_READY");
+                }
+
+                // Validate sprint exists and is in PLANNED state
+                Sprint sprint = sprintRepository.findById(request.getSprintId())
+                        .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+                if (sprint.getStatus() != Sprint.SprintStatus.PLANNED) {
+                    throw new RuntimeException("Can only add items to sprints in PLANNED status");
+                }
+
+                // Validate sprint belongs to same project
+                if (!sprint.getProjectId().equals(item.getProjectId())) {
+                    throw new RuntimeException("Sprint and backlog item must belong to the same project");
+                }
+
+                // Set status to SPRINT_READY initially
+                item.setStatus(ProductBacklogItem.ItemStatus.SPRINT_READY);
+                item = backlogItemRepository.save(item);
+
+                // Initiate approval workflow
+                approvalService.requestApprovals(
+                        item.getId(),
+                        request.getSprintId(),
+                        request.getAssignedDeveloperIds(),
+                        item.getCreatedBy()
+                );
+
+                // Reload the item to get updated status (will be PENDING_APPROVAL)
+                item = backlogItemRepository.findById(item.getId())
+                        .orElseThrow(() -> new RuntimeException("Failed to reload updated item"));
+            } else {
+                // For other status changes, just update the status
+                item.setStatus(newStatus);
+            }
+        }
 
         item = backlogItemRepository.save(item);
 

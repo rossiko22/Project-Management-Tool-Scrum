@@ -80,7 +80,7 @@ public class AuthController {
 
         // TODO: Set Secure flag in production (requires HTTPS)
         // jwtCookie.setSecure(true);
-
+        
         httpResponse.addCookie(jwtCookie);
 
         return ResponseEntity.ok(loginResponse);
@@ -94,6 +94,8 @@ public class AuthController {
         logger.logInfo("Getting current user info: " + email, url);
         return ResponseEntity.ok(authService.getCurrentUser(email));
     }
+
+    @GetMapping("")
 
     @PostMapping("/logout")
     @Operation(summary = "Logout", description = "Logout current user (clear JWT cookie)")

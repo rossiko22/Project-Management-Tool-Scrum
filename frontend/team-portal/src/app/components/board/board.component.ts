@@ -203,6 +203,8 @@ export class BoardComponent implements OnInit {
   updateBoardItemColumn(task: Task, newStatus: Task['status']): void {
     if (!this.currentSprint) return;
 
+    console.log(newStatus);
+    
     this.sprintService.moveBoardItem(this.currentSprint.id, task.backlogItemId, newStatus).subscribe({
       next: () => {
         task.status = newStatus;

@@ -88,6 +88,7 @@ public class ProductBacklogItem {
         STORY, EPIC, BUG, TECHNICAL_TASK
     }
 
+    // IN_SPRINT can be removed
     public enum ItemStatus {
         BACKLOG, PENDING_APPROVAL, SPRINT_READY, IN_SPRINT, DONE, PENDING_ACCEPTANCE, ACCEPTED, REJECTED
     }

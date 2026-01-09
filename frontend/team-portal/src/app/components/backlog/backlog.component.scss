@@ -400,13 +400,23 @@
       }
 
       &.in-sprint {
-        background: #bee3f8;
-        color: #2c5282;
+        background: #2c5282;
+        color: #ffffff;
       }
 
       &.done {
         background: #c6f6d5;
         color: #276749;
+      }
+
+      &.in_progress{
+        background: #feebc8;
+        color: #c05621;
+      }
+
+      &.review{
+        background: #bee3f8;
+        color: #2c5282;
       }
     }
   }

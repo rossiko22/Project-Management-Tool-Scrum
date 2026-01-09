@@ -328,7 +328,7 @@ export class TasksComponent implements OnInit, OnDestroy {
     const labels: Record<Task['status'], string> = {
       'TO_DO': 'To Do',
       'IN_PROGRESS': 'In Progress',
-      'REVIEW': 'Review',
+      'REVIEW': 'In Review',
       'DONE': 'Done'
     };
     return labels[status] || status;

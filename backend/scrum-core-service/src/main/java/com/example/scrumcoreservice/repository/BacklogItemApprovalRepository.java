@@ -28,6 +28,7 @@ public interface BacklogItemApprovalRepository extends JpaRepository<BacklogItem
     Optional<BacklogItemApproval> findByBacklogItemIdAndSprintIdAndDeveloperId(
             Long backlogItemId, Long sprintId, Long developerId);
 
+
     /**
      * Check if all approvals for a backlog item in a sprint are approved
      */

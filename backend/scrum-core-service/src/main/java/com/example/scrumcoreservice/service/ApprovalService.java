@@ -212,8 +212,8 @@ public class ApprovalService {
 
             sprintBacklogItemRepository.save(sprintBacklogItem);
 
-            // Update item status to SPRINT_READY
-            item.setStatus(ProductBacklogItem.ItemStatus.SPRINT_READY);
+            // Update item status to IN_SPRINT
+            item.setStatus(ProductBacklogItem.ItemStatus.IN_SPRINT);
             backlogItemRepository.save(item);
 
             log.info("All approvals received for backlog item {} in sprint {}. Item added to sprint.",

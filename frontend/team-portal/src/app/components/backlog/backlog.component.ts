@@ -42,7 +42,7 @@ export class BacklogComponent implements OnInit, OnDestroy {
   itemTypes = ['STORY', 'EPIC', 'BUG', 'TECHNICAL_TASK'];
   // Only BACKLOG and SPRINT_READY allowed during creation
   createItemStatuses = ['BACKLOG', 'SPRINT_READY'];
-  itemStatuses = ['BACKLOG', 'SPRINT_READY', 'IN_SPRINT', 'DONE', 'PENDING_APPROVAL'];
+  itemStatuses = ['BACKLOG', 'SPRINT_READY'];
 
   // Sprint selection for SPRINT_READY items
   plannedSprints: Sprint[] = [];
@@ -173,6 +173,15 @@ export class BacklogComponent implements OnInit, OnDestroy {
   openEditModal(item: BacklogItem): void {
     this.isEditMode = true;
     this.currentItem = { ...item };
+
+    // Load planned sprints and team members for potential status change
+    this.loadPlannedSprints();
+    this.loadTeamMembers();
+
+    // Initialize sprint selection state based on current status
+    this.showSprintSelection = this.currentItem.status === 'SPRINT_READY';
+    this.selectedSprintId = null; // Reset sprint selection
+
     this.showModal = true;
   }
 
@@ -197,8 +206,15 @@ export class BacklogComponent implements OnInit, OnDestroy {
     }
 
     if (this.isEditMode && this.currentItem.id) {
-      // Update existing item
-      this.backlogService.updateBacklogItem(this.currentItem.id, this.currentItem).subscribe({
+      // Update existing item with sprint and team member info if SPRINT_READY
+      const itemData: any = { ...this.currentItem };
+
+      if (this.currentItem.status === 'SPRINT_READY' && this.selectedSprintId) {
+        itemData.sprintId = this.selectedSprintId;
+        itemData.assignedDeveloperIds = this.teamMembers.map(m => m.id);
+      }
+
+      this.backlogService.updateBacklogItem(this.currentItem.id, itemData).subscribe({
         next: () => {
           this.closeModal();
           this.loadBacklog();

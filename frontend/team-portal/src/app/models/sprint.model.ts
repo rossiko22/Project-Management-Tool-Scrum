@@ -58,7 +58,7 @@ export interface BacklogItem {
   title: string;
   description: string;
   type: 'STORY' | 'EPIC' | 'BUG' | 'TECHNICAL_TASK';
-  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'DONE' | 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED' | 'PENDING_APPROVAL';
+  status: 'BACKLOG' | 'SPRINT_READY' | 'IN_SPRINT' | 'DONE' | 'PENDING_ACCEPTANCE' | 'ACCEPTED' | 'REJECTED' | 'PENDING_APPROVAL' | 'TO_DO' | 'IN_PROGRESS' | 'REVIEW';
   storyPoints?: number;
   priority: number;
   position: number;
@@ -75,7 +75,7 @@ export interface Task {
   backlogItemId: number;
   title: string;
   description?: string;
-  status: 'TO_DO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+  status: 'TO_DO' | 'IN_PROGRESS' | 'DONE' | 'REVIEW';
   assigneeId?: number;
   assignee?: {
     id: number;
