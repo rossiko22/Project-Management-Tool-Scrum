@@ -188,6 +188,19 @@ export interface VelocityData {
   sprintEndDate: string;
 }
 
+export interface ProjectBurndownData {
+  id: number;
+  projectId: number;
+  sprintId: number;
+  sprintNumber: number;
+  sprintName: string;
+  backlogItemsRemaining: number;
+  itemsCompletedInSprint: number;
+  completedPoints: number;
+  sprintEndDate: string;
+  recordedAt: string;
+}
+
 export interface CumulativeFlowData {
   date: string;
   toDoCount: number;

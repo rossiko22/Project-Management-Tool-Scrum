@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { BacklogService } from '../../services/backlog.service';
@@ -12,11 +13,12 @@ import { AuthService } from '../../services/auth.service';
 import { ApprovalService, BacklogItemApproval } from '../../services/approval.service';
 import { BacklogItem, Sprint } from '../../models/sprint.model';
 import { Project, Team, TeamMember } from '../../models/project.model';
+import { CommentsComponent } from '../comments/comments.component';
 
 @Component({
   selector: 'app-backlog',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, DragDropModule],
+  imports: [CommonModule, RouterLink, FormsModule, DragDropModule, CommentsComponent],
   templateUrl: './backlog.component.html',
   styleUrls: ['./backlog.component.scss']
 })
@@ -64,10 +66,23 @@ export class BacklogComponent implements OnInit, OnDestroy {
     private projectService: ProjectService,
     private projectContext: ProjectContextService,
     public authService: AuthService,
-    private approvalService: ApprovalService
+    private approvalService: ApprovalService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/backlog',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+
     this.projectSubscription = this.projectContext.selectedProject$.subscribe(project => {
       this.selectedProject = project;
       if (project) {
@@ -199,8 +214,9 @@ export class BacklogComponent implements OnInit, OnDestroy {
         this.error = 'Please select a sprint when status is SPRINT_READY';
         return;
       }
-      if (this.teamMembers.length === 0) {
-        this.error = 'No team members found for approval workflow';
+      // Only validate team members if user is a Developer (needs PO approval)
+      if (!this.authService.hasRole('PRODUCT_OWNER') && this.teamMembers.length === 0) {
+        this.error = 'No Product Owner found for approval workflow';
         return;
       }
     }
@@ -375,31 +391,17 @@ export class BacklogComponent implements OnInit, OnDestroy {
       const team = project.team;
 
       console.log('Team.productOwner:', team.productOwner);
-      console.log('Team.scrumMaster:', team.scrumMaster);
-      console.log('Team.developers:', team.developers);
 
-      // Add Product Owner (they need to approve if a developer creates the item)
+      // NEW LOGIC: Only add Product Owner for approval workflow
+      // - If current user is Product Owner: no approval needed (handled by backend)
+      // - If current user is Developer: only Product Owner needs to approve
       if (team.productOwner && team.productOwner.id != null) {
         console.log('Adding Product Owner:', team.productOwner.id);
         members.push({ id: team.productOwner.id, role: 'PRODUCT_OWNER' });
       }
 
-      // Add all Developers
-      if (team.developers && Array.isArray(team.developers)) {
-        console.log('Processing developers array, length:', team.developers.length);
-        team.developers.forEach((developer: any) => {
-          console.log('Developer:', developer);
-          if (developer.id != null) {
-            console.log('Adding developer:', developer.id);
-            members.push({ id: developer.id, role: 'DEVELOPER' });
-          }
-        });
-      } else {
-        console.log('No developers array or not an array');
-      }
-
-      // Note: We deliberately EXCLUDE Scrum Master from approval workflow
-      // The backend will exclude the creator automatically
+      // Note: We no longer add developers to the approval list
+      // Only Product Owner approval is required when Developer creates/edits items
     } else {
       console.log('No team object found');
     }

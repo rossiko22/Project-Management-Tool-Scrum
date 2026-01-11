@@ -1,0 +1,135 @@
+<div class="reports-container">
+  <h2>Team Reports & Metrics</h2>
+
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading reports...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="error && !loading" class="error-state">
+    <p>{{ error }}</p>
+    <button (click)="loadSprints(); loadProjectBurndown()" class="retry-button">Retry</button>
+  </div>
+
+  <!-- Reports Grid -->
+  <div *ngIf="!loading" class="reports-grid">
+
+    <!-- Team Velocity Chart -->
+    <div class="report-card">
+      <div class="card-header">
+        <h3>Team Velocity</h3>
+        <p class="card-subtitle">Story points completed per sprint</p>
+      </div>
+      <div class="card-content">
+        <div *ngIf="velocityData.length === 0" class="empty-state">
+          <p>No velocity data available yet. Complete sprints to see velocity trends.</p>
+        </div>
+        <div *ngIf="velocityData.length > 0" class="chart-container">
+          <div class="velocity-chart">
+            <div *ngFor="let data of velocityData" class="velocity-bar-container">
+              <div class="velocity-bar-wrapper">
+                <div
+                  class="velocity-bar"
+                  [style.height.%]="getVelocityChartHeight(data.velocity)"
+                  [title]="data.sprintName + ': ' + data.velocity + ' points'">
+                  <span class="velocity-value">{{ data.velocity }}</span>
+                </div>
+              </div>
+              <div class="velocity-label">
+                <div class="sprint-name">{{ data.sprintName }}</div>
+                <div class="sprint-date">{{ data.sprintEndDate | date: 'MMM d' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-stats">
+            <div class="stat">
+              <span class="stat-label">Average Velocity:</span>
+              <span class="stat-value">{{ getAverageVelocity().toFixed(1) }} pts</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Total Sprints:</span>
+              <span class="stat-value">{{ velocityData.length }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project Burndown Chart -->
+    <div class="report-card">
+      <div class="card-header">
+        <h3>Project Burndown</h3>
+        <p class="card-subtitle">Backlog items remaining after each sprint</p>
+      </div>
+      <div class="card-content">
+        <div *ngIf="projectBurndownData.length === 0" class="empty-state">
+          <p>No burndown data available yet. Complete sprints to track backlog reduction.</p>
+        </div>
+        <div *ngIf="projectBurndownData.length > 0" class="chart-container">
+          <div class="burndown-chart">
+            <div class="burndown-y-axis">
+              <div class="y-axis-label" *ngFor="let label of getYAxisLabels()">
+                {{ label }}
+              </div>
+            </div>
+            <div class="burndown-plot">
+              <!-- Grid lines (one for each y-axis label) -->
+              <div class="grid-lines">
+                <div class="grid-line" *ngFor="let label of getYAxisLabels()"></div>
+              </div>
+
+              <!-- Burndown line -->
+              <svg class="burndown-svg" [attr.viewBox]="'0 0 ' + (projectBurndownData.length * 100) + ' 100'">
+                <!-- Line connecting points -->
+                <polyline
+                  [attr.points]="getBurndownLinePoints()"
+                  class="burndown-line"
+                />
+
+                <!-- Data points -->
+                <circle
+                  *ngFor="let data of projectBurndownData; let i = index"
+                  [attr.cx]="i * 100 + 50"
+                  [attr.cy]="100 - getBurndownChartHeight(data.backlogItemsRemaining)"
+                  r="3"
+                  class="burndown-point"
+                  [title]="'Sprint ' + data.sprintNumber + ': ' + data.backlogItemsRemaining + ' items remaining'"
+                />
+              </svg>
+
+              <!-- X-axis labels -->
+              <div class="burndown-labels">
+                <div *ngFor="let data of projectBurndownData" class="burndown-label">
+                  <div class="sprint-info">
+                    <div class="sprint-number">Sprint {{ data.sprintNumber }}</div>
+                    <div class="items-remaining">{{ data.backlogItemsRemaining }} items</div>
+                    <div class="items-completed">-{{ data.itemsCompletedInSprint }} done</div>
+                    <div class="sprint-date-small">{{ data.sprintEndDate | date: 'MMM d' }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-stats">
+            <div class="stat">
+              <span class="stat-label">Starting Backlog:</span>
+              <span class="stat-value">{{ getStartingBacklog() }} items</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Current Backlog:</span>
+              <span class="stat-value">{{ getCurrentBacklog() }} items</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Total Completed:</span>
+              <span class="stat-value">{{ getTotalCompletedItems() }} items</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

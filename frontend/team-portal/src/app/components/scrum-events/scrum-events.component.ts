@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-scrum-events',
@@ -39,4 +41,23 @@ import { CommonModule } from '@angular/common';
     .event-card p { margin: 0; color: #718096; }
   `]
 })
-export class ScrumEventsComponent {}
+export class ScrumEventsComponent implements OnInit {
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  ngOnInit(): void {
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/scrum-events',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+  }
+}

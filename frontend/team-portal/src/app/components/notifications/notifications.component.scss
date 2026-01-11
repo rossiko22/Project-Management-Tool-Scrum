@@ -1,0 +1,262 @@
+.notifications-container {
+  position: relative;
+}
+
+.notification-bell {
+  position: relative;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .bell-icon {
+    font-size: 1.5rem;
+    display: block;
+  }
+
+  .notification-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 380px;
+  max-height: 500px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .dropdown-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+
+    h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .mark-all-read {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+    }
+  }
+
+  .notifications-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 400px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f7fafc;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e0;
+      border-radius: 3px;
+
+      &:hover {
+        background: #a0aec0;
+      }
+    }
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1rem;
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    p {
+      margin-top: 0.75rem;
+      color: #718096;
+      font-size: 0.9rem;
+    }
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 0.75rem;
+      opacity: 0.5;
+    }
+
+    p {
+      margin: 0;
+      color: #4a5568;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .empty-text {
+      margin-top: 0.25rem;
+      color: #a0aec0;
+      font-size: 0.9rem;
+    }
+  }
+
+  .notification-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    position: relative;
+
+    &:hover {
+      background: #f7fafc;
+    }
+
+    &.unread {
+      background: #edf2f7;
+
+      &:hover {
+        background: #e2e8f0;
+      }
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .notification-icon {
+      font-size: 1.5rem;
+      margin-right: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    .notification-content {
+      flex: 1;
+
+      .notification-title {
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .notification-message {
+        color: #4a5568;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        margin-bottom: 0.25rem;
+      }
+
+      .notification-time {
+        color: #a0aec0;
+        font-size: 0.75rem;
+      }
+    }
+
+    .unread-indicator {
+      width: 8px;
+      height: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: 0.5rem;
+      margin-top: 0.5rem;
+    }
+  }
+
+  .dropdown-footer {
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    background: #f7fafc;
+
+    .view-all {
+      color: #667eea;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s;
+
+      &:hover {
+        color: #764ba2;
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .notifications-dropdown {
+    width: 320px;
+    right: -50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .notifications-dropdown {
+    position: fixed;
+    top: 60px !important;
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+}

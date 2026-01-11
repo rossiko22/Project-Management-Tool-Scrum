@@ -19,7 +19,15 @@
           <span>📁</span> Projects
         </a>
       </li>
+      <li>
+        <a routerLink="/api-tracking" routerLinkActive="active">
+          <span>📈</span> API Tracking
+        </a>
+      </li>
     </ul>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">Logout</button>
+    </div>
   </nav>
 
   <main class="main-content">
@@ -178,7 +186,7 @@
           <div class="project-header">
             <h3>{{ project.name }}</h3>
             <span class="project-id">#{{ project.id }}</span>
-            <span class="status-badge" [class]="'status-' + project.status?.toLowerCase()">
+            <span class="status-badge" [class]="'status-' + project.status.toLowerCase()">
               {{ project.status }}
             </span>
           </div>

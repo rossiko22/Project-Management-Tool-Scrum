@@ -19,6 +19,11 @@
           <span>📁</span> Projects
         </a>
       </li>
+      <li>
+        <a routerLink="/api-tracking" routerLinkActive="active">
+          <span>📈</span> API Tracking
+        </a>
+      </li>
     </ul>
     <div class="sidebar-footer">
       <div class="user-info" *ngIf="currentUser">
@@ -36,36 +41,41 @@
     </header>
 
     <div class="dashboard-content">
-      <div class="stats-grid">
+      <div *ngIf="loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading dashboard data...</p>
+      </div>
+
+      <div *ngIf="!loading" class="stats-grid">
         <div class="stat-card">
-          <div class="stat-icon">👥</div>
+          <div class="stat-icon users">👥</div>
           <div class="stat-info">
-            <h3>Users</h3>
-            <p class="stat-value">-</p>
+            <h3>Total Users</h3>
+            <p class="stat-value">{{ usersCount }}</p>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon">📁</div>
+          <div class="stat-icon projects">📁</div>
           <div class="stat-info">
-            <h3>Projects</h3>
-            <p class="stat-value">-</p>
+            <h3>Total Projects</h3>
+            <p class="stat-value">{{ projectsCount }}</p>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon">🏃</div>
+          <div class="stat-icon active">🏃</div>
           <div class="stat-info">
-            <h3>Active Sprints</h3>
-            <p class="stat-value">-</p>
+            <h3>Active Projects</h3>
+            <p class="stat-value">{{ activeProjectsCount }}</p>
           </div>
         </div>
 
         <div class="stat-card">
-          <div class="stat-icon">✅</div>
+          <div class="stat-icon api">📈</div>
           <div class="stat-info">
-            <h3>Completed Tasks</h3>
-            <p class="stat-value">-</p>
+            <h3>API Tracking</h3>
+            <p class="stat-value">Live</p>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { SprintService } from '../../services/sprint.service';
 import { RetrospectiveService } from '../../services/retrospective.service';
 import { AuthService } from '../../services/auth.service';
@@ -26,6 +27,7 @@ export class SprintsComponent implements OnInit {
   showCreateModal = false;
   showRetrospectiveModal = false;
   viewingRetrospective = false;
+  isEditingRetrospective = false;
 
   newSprint: CreateSprintRequest = {
     projectId: 0,
@@ -52,10 +54,23 @@ export class SprintsComponent implements OnInit {
     private retrospectiveService: RetrospectiveService,
     public authService: AuthService,
     private projectContext: ProjectContextService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/sprints',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+
     this.loadSprints();
   }
 
@@ -228,7 +243,23 @@ export class SprintsComponent implements OnInit {
   closeRetrospectiveModal(): void {
     this.showRetrospectiveModal = false;
     this.viewingRetrospective = false;
+    this.isEditingRetrospective = false;
     this.retrospective = null;
+  }
+
+  editRetrospective(): void {
+    if (!this.retrospective) return;
+
+    this.newRetrospective = {
+      sprintId: this.retrospective.sprintId,
+      wentWell: [...this.retrospective.wentWell],
+      improvements: [...this.retrospective.improvements],
+      actionItems: [...this.retrospective.actionItems],
+      overallNotes: this.retrospective.overallNotes || '',
+      teamMood: this.retrospective.teamMood || 3
+    };
+    this.viewingRetrospective = false;
+    this.isEditingRetrospective = true;
   }
 
   addItem(array: string[]): void {
@@ -265,18 +296,35 @@ export class SprintsComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.retrospectiveService.createRetrospective(request).subscribe({
-      next: (retro) => {
-        this.successMessage = 'Retrospective created successfully';
-        this.closeRetrospectiveModal();
-        setTimeout(() => this.successMessage = null, 3000);
-      },
-      error: (err) => {
-        console.error('Error creating retrospective:', err);
-        this.error = err.error?.message || 'Failed to create retrospective';
-        this.loading = false;
-      }
-    });
+    if (this.isEditingRetrospective && this.retrospective) {
+      // Update existing retrospective
+      this.retrospectiveService.updateRetrospective(this.retrospective.id, request).subscribe({
+        next: (retro) => {
+          this.successMessage = 'Retrospective updated successfully';
+          this.closeRetrospectiveModal();
+          setTimeout(() => this.successMessage = null, 3000);
+        },
+        error: (err) => {
+          console.error('Error updating retrospective:', err);
+          this.error = err.error?.message || 'Failed to update retrospective';
+          this.loading = false;
+        }
+      });
+    } else {
+      // Create new retrospective
+      this.retrospectiveService.createRetrospective(request).subscribe({
+        next: (retro) => {
+          this.successMessage = 'Retrospective created successfully';
+          this.closeRetrospectiveModal();
+          setTimeout(() => this.successMessage = null, 3000);
+        },
+        error: (err) => {
+          console.error('Error creating retrospective:', err);
+          this.error = err.error?.message || 'Failed to create retrospective';
+          this.loading = false;
+        }
+      });
+    }
   }
 
   getStatusClass(status: string): string {

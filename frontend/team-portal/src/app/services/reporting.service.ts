@@ -1,24 +1,33 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { BurndownData, VelocityData, CumulativeFlowData, SprintMetrics } from '../models/sprint.model';
+import { BurndownData, VelocityData, CumulativeFlowData, SprintMetrics, ProjectBurndownData } from '../models/sprint.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ReportingService {
-  private apiUrl = `${environment.apiUrl}/reports`;
+  private apiUrl = `${environment.reportingApiUrl}/reports`;
 
   constructor(private http: HttpClient) {}
 
-  getBurndownChart(projectId: number, sprintId?: number): Observable<BurndownData[]> {
-    const params = sprintId ? { sprintId: sprintId.toString() } : {};
-    return this.http.get<BurndownData[]>(`${this.apiUrl}/projects/${projectId}/burndown`, { params });
+  getBurndownChart(sprintId: number): Observable<BurndownData[]> {
+    const url = `${environment.reportingApiUrl}/burndown/sprint/${sprintId}`;
+    console.log('Fetching burndown data from:', url);
+    return this.http.get<BurndownData[]>(url);
   }
 
-  getVelocityChart(projectId: number): Observable<VelocityData[]> {
-    return this.http.get<VelocityData[]>(`${this.apiUrl}/projects/${projectId}/velocity`);
+  getProjectBurndown(projectId: number): Observable<ProjectBurndownData[]> {
+    const url = `${environment.reportingApiUrl}/burndown/project/${projectId}`;
+    console.log('Fetching project burndown data from:', url);
+    return this.http.get<ProjectBurndownData[]>(url);
+  }
+
+  getVelocityChart(teamId: number): Observable<VelocityData[]> {
+    const url = `${environment.reportingApiUrl}/velocity/team/${teamId}`;
+    console.log('Fetching velocity data from:', url);
+    return this.http.get<VelocityData[]>(url);
   }
 
   getCumulativeFlowDiagram(teamId: number): Observable<CumulativeFlowData[]> {

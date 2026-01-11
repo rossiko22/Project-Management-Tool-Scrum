@@ -29,12 +29,49 @@ public class ApprovalService {
     private final SprintBacklogItemRepository sprintBacklogItemRepository;
     private final EventPublisher eventPublisher;
 
+    // Collaboration service URL for notifications (using 127.0.0.1 to force IPv4)
+    private static final String COLLABORATION_SERVICE_URL = "http://127.0.0.1:3000";
+
     /**
-     * Request approval from all team members (except requester) for a backlog item to be added to sprint
-     * Called by any team member when selecting items for sprint planning
+     * Add item to sprint directly without approval (Product Owner only)
      */
     @Transactional
-    public void requestApprovals(Long backlogItemId, Long sprintId, List<Long> teamMemberIds, Long requesterId) {
+    public void addItemToSprintDirectly(Long backlogItemId, Long sprintId) {
+        // Validate backlog item exists
+        ProductBacklogItem item = backlogItemRepository.findById(backlogItemId)
+                .orElseThrow(() -> new RuntimeException("Backlog item not found"));
+
+        // Validate sprint exists and is in PLANNED status
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found"));
+
+        if (sprint.getStatus() != Sprint.SprintStatus.PLANNED) {
+            throw new RuntimeException("Can only add items to sprints in PLANNED status");
+        }
+
+        // Create sprint backlog item entry
+        SprintBacklogItem sprintBacklogItem = SprintBacklogItem.builder()
+                .sprintId(sprintId)
+                .backlogItemId(backlogItemId)
+                .committedPoints(item.getStoryPoints())
+                .build();
+
+        sprintBacklogItemRepository.save(sprintBacklogItem);
+
+        // Update item status to IN_SPRINT
+        item.setStatus(ProductBacklogItem.ItemStatus.IN_SPRINT);
+        backlogItemRepository.save(item);
+
+        log.info("Product Owner added backlog item {} to sprint {} directly without approval.",
+                backlogItemId, sprintId);
+    }
+
+    /**
+     * Request approval from Product Owner for a backlog item to be added to sprint
+     * Called by Developer when selecting items for sprint planning
+     */
+    @Transactional
+    public void requestApprovals(Long backlogItemId, Long sprintId, List<Long> teamMemberIds, Long requesterId, String requesterRole) {
         // Validate backlog item exists
         ProductBacklogItem item = backlogItemRepository.findById(backlogItemId)
                 .orElseThrow(() -> new RuntimeException("Backlog item not found"));
@@ -55,7 +92,11 @@ public class ApprovalService {
             throw new RuntimeException("Approval requests already exist for this backlog item in this sprint");
         }
 
-        // Create approval request for each team member EXCEPT the requester
+        log.info("🔔 Starting approval workflow for backlog item {} ('{}')", backlogItemId, item.getTitle());
+        log.info("   Requester ID: {}, Team members to notify: {}", requesterId, teamMemberIds);
+
+        // When Developer requests, only Product Owner needs to approve
+        // Find Product Owner from team members list
         for (Long memberId : teamMemberIds) {
             // Skip null member IDs
             if (memberId == null) {
@@ -64,33 +105,48 @@ public class ApprovalService {
                 continue;
             }
 
-            // Skip the requester
+            // Skip the requester (Developer)
             if (memberId.equals(requesterId)) {
                 log.info("Skipping approval request for requester {} for backlog item {} in sprint {}",
                         memberId, backlogItemId, sprintId);
-                continue; // Skip the person who added the item
+                continue;
             }
 
+            // Only create approval for Product Owner (we assume PO is in the teamMemberIds list)
+            // In practice, the frontend should only send the PO's ID when a Developer creates the item
             BacklogItemApproval approval = BacklogItemApproval.builder()
                     .backlogItemId(backlogItemId)
                     .sprintId(sprintId)
-                    .developerId(memberId) // Using developerId field for all team members
+                    .developerId(memberId) // Using developerId field for Product Owner
                     .status(BacklogItemApproval.ApprovalStatus.PENDING)
                     .requestedAt(LocalDateTime.now())
                     .build();
 
             approvalRepository.save(approval);
 
-            log.info("Created approval request for team member {} for backlog item {} in sprint {}",
+            log.info("✅ Created approval request for Product Owner {} for backlog item {} in sprint {}",
                     memberId, backlogItemId, sprintId);
+
+            // Send notification to Product Owner about the approval request
+            sendNotification(
+                memberId,
+                "BACKLOG_ITEM_APPROVAL_REQUEST",
+                "Approval Request",
+                String.format("Developer requested approval: Please review '%s' for sprint '%s'",
+                    item.getTitle(), sprint.getName()),
+                "BACKLOG_ITEM",
+                backlogItemId
+            );
+
+            log.info("🔔 Notification sent to Product Owner {}", memberId);
         }
 
         // Update backlog item status to PENDING_APPROVAL
         item.setStatus(ProductBacklogItem.ItemStatus.PENDING_APPROVAL);
         backlogItemRepository.save(item);
 
-        log.info("Approval workflow initiated for backlog item {} in sprint {}. {} approval(s) required.",
-                backlogItemId, sprintId, teamMemberIds.size() - 1); // -1 for requester
+        log.info("Approval workflow initiated for backlog item {} in sprint {}. Product Owner approval required.",
+                backlogItemId, sprintId);
     }
 
     /**
@@ -133,6 +189,21 @@ public class ApprovalService {
                         .performedBy(developerId)
                         .build();
         eventPublisher.publishApprovalEvent(event);
+
+        // Send notification to the developer who created the item
+        if (item.getCreatedBy() != null && !item.getCreatedBy().equals(developerId)) {
+            log.info("🔔 Sending approval notification to developer {} for item '{}'", item.getCreatedBy(), item.getTitle());
+            sendNotification(
+                item.getCreatedBy(),
+                "BACKLOG_ITEM_APPROVED",
+                "Item Approved",
+                String.format("Product Owner approved your item '%s' for sprint '%s'", item.getTitle(), sprint.getName()),
+                "BACKLOG_ITEM",
+                backlogItemId
+            );
+        } else {
+            log.info("ℹ️ Not sending approval notification (creator={}, approver={})", item.getCreatedBy(), developerId);
+        }
 
         // Check if all approvals are now complete
         checkAndProcessAllApprovals(backlogItemId, sprintId);
@@ -185,6 +256,22 @@ public class ApprovalService {
                         .performedBy(developerId)
                         .build();
         eventPublisher.publishApprovalEvent(event);
+
+        // Send notification to the developer who created the item
+        if (item.getCreatedBy() != null && !item.getCreatedBy().equals(developerId)) {
+            log.info("🔔 Sending rejection notification to developer {} for item '{}'", item.getCreatedBy(), item.getTitle());
+            sendNotification(
+                item.getCreatedBy(),
+                "BACKLOG_ITEM_REJECTED",
+                "Item Rejected",
+                String.format("Product Owner rejected your item '%s' for sprint '%s'. Reason: %s",
+                    item.getTitle(), sprint.getName(), reason),
+                "BACKLOG_ITEM",
+                backlogItemId
+            );
+        } else {
+            log.info("ℹ️ Not sending rejection notification (creator={}, rejector={})", item.getCreatedBy(), developerId);
+        }
 
         // Process rejection - item cannot be added to sprint
         processRejection(backlogItemId, sprintId);
@@ -312,5 +399,63 @@ public class ApprovalService {
         }
 
         log.info("Cancelled all approvals for sprint {}", sprintId);
+    }
+
+    /**
+     * Send notification to collaboration service
+     */
+    private void sendNotification(Long recipientId, String notificationType, String title, String message,
+                                   String entityType, Long entityId) {
+        try {
+            // Build payload as Map for proper JSON serialization
+            java.util.Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("recipientId", recipientId);
+            payload.put("type", notificationType);
+
+            java.util.Map<String, Object> payloadData = new java.util.HashMap<>();
+            payloadData.put("title", title);
+            payloadData.put("message", message);
+            payloadData.put("entityType", entityType);
+            payloadData.put("entityId", entityId);
+
+            payload.put("payload", payloadData);
+
+            // Use Jackson ObjectMapper for JSON serialization
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String jsonPayload = mapper.writeValueAsString(payload);
+
+            log.debug("Sending notification: {}", jsonPayload);
+
+            // Use simple URLConnection for more reliable HTTP communication
+            java.net.URL url = new java.net.URL(COLLABORATION_SERVICE_URL + "/notifications");
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(10000);
+
+            try (java.io.OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonPayload.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode >= 200 && responseCode < 300) {
+                log.info("✅ Notification sent to user {} (type: {})", recipientId, notificationType);
+            } else {
+                java.io.BufferedReader br = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getErrorStream(), java.nio.charset.StandardCharsets.UTF_8));
+                String responseLine;
+                StringBuilder responseBody = new StringBuilder();
+                while ((responseLine = br.readLine()) != null) {
+                    responseBody.append(responseLine.trim());
+                }
+                log.warn("⚠️ Failed to send notification: HTTP {} - {}", responseCode, responseBody.toString());
+            }
+        } catch (Exception e) {
+            log.error("⚠️ Failed to send notification to user {}: {}", recipientId, e.getMessage());
+            e.printStackTrace();
+        }
     }
 }

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { SprintService } from '../../services/sprint.service';
 import { TaskService } from '../../services/task.service';
@@ -46,10 +47,23 @@ export class BoardComponent implements OnInit {
     private sprintService: SprintService,
     private taskService: TaskService,
     private projectService: ProjectService,
-    public authService: AuthService
+    public authService: AuthService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/board',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+
     this.loadProjects();
   }
 

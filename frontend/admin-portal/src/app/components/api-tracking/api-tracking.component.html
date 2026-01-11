@@ -1,0 +1,147 @@
+<div class="dashboard">
+  <nav class="sidebar">
+    <div class="sidebar-header">
+      <h2>Admin Portal</h2>
+    </div>
+    <ul class="nav-menu">
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active">
+          <span>📊</span> Dashboard
+        </a>
+      </li>
+      <li>
+        <a routerLink="/users" routerLinkActive="active">
+          <span>👥</span> Users
+        </a>
+      </li>
+      <li>
+        <a routerLink="/projects" routerLinkActive="active">
+          <span>📁</span> Projects
+        </a>
+      </li>
+      <li>
+        <a routerLink="/api-tracking" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+          <span>📈</span> API Tracking
+        </a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="container">
+      <div class="header">
+        <h1>API Call Tracking</h1>
+        <button class="btn btn-primary" (click)="refresh()" [disabled]="loading">
+          {{ loading ? 'Loading...' : 'Refresh' }}
+        </button>
+      </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📊</div>
+      <div class="stat-content">
+        <div class="stat-label">Total Calls</div>
+        <div class="stat-value">{{ getTotalCalls() }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🔗</div>
+      <div class="stat-content">
+        <div class="stat-label">Unique Endpoints</div>
+        <div class="stat-value">{{ getUniqueEndpoints() }}</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">🔥</div>
+      <div class="stat-content">
+        <div class="stat-label">Most Frequent</div>
+        <div class="stat-value">{{ getMostFrequentEndpoint() }}</div>
+        <div class="stat-subtext">{{ getMostFrequentCount() }} calls</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon">⏱️</div>
+      <div class="stat-content">
+        <div class="stat-label">Last Called</div>
+        <div class="stat-value">{{ getLastCalledEndpoint() }}</div>
+        <div class="stat-subtext">{{ getLastCalledTime() }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Endpoint Statistics -->
+  <div class="section">
+    <h2>Endpoint Statistics</h2>
+    <div class="endpoint-stats">
+      <div class="endpoint-row" *ngFor="let stat of getFilteredCounts()">
+        <div class="endpoint-name">{{ stat.endpoint }}</div>
+        <div class="endpoint-bar">
+          <div class="endpoint-bar-fill" [style.width.%]="(stat.total_calls / getTotalCalls()) * 100"></div>
+        </div>
+        <div class="endpoint-count">{{ stat.total_calls }}</div>
+      </div>
+      <div class="empty-state" *ngIf="getFilteredCounts().length === 0">
+        <p>No endpoints found</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <input
+      type="text"
+      class="filter-input"
+      placeholder="Filter by endpoint..."
+      [(ngModel)]="filterEndpoint"
+    />
+  </div>
+
+  <!-- Error Message -->
+  <div class="alert alert-error" *ngIf="error">
+    {{ error }}
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading" *ngIf="loading">
+    <div class="spinner"></div>
+    Loading API tracking data...
+  </div>
+
+  <!-- Last Called Details -->
+  <div class="section" *ngIf="!loading && !error && lastCalled">
+    <h2>Last API Call Details</h2>
+    <div class="last-call-details">
+      <div class="detail-item">
+        <span class="detail-label">Endpoint:</span>
+        <span class="detail-value endpoint-cell">{{ lastCalled.endpoint }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Method:</span>
+        <span class="method-badge" [class]="'method-' + lastCalled.method.toLowerCase()">
+          {{ lastCalled.method }}
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">User ID:</span>
+        <span class="detail-value">{{ lastCalled.user_id || 'Anonymous' }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">IP Address:</span>
+        <span class="detail-value">{{ lastCalled.ip }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Time:</span>
+        <span class="detail-value">{{ formatDate(lastCalled.time) }}</span>
+      </div>
+    </div>
+  </div>
+    </div>
+  </main>
+</div>

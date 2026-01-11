@@ -40,13 +40,10 @@ public class BacklogService {
             initialStatus = ProductBacklogItem.ItemStatus.valueOf(requestedStatus);
         }
 
-        // If SPRINT_READY status requested, validate sprint and team members
+        // If SPRINT_READY status requested, validate sprint
         if (initialStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
             if (request.getSprintId() == null) {
                 throw new RuntimeException("Sprint ID is required when status is SPRINT_READY");
-            }
-            if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
-                throw new RuntimeException("Team member IDs are required when status is SPRINT_READY");
             }
 
             // Validate sprint exists and is in PLANNED state
@@ -82,19 +79,33 @@ public class BacklogService {
 
         item = backlogItemRepository.save(item);
 
-        // If SPRINT_READY status, initiate approval workflow
+        // Handle SPRINT_READY status based on user role
         if (initialStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
-            approvalService.requestApprovals(
-                    item.getId(),
-                    request.getSprintId(),
-                    request.getAssignedDeveloperIds(),
-                    userId
-            );
+            if ("PRODUCT_OWNER".equals(userRole)) {
+                // Product Owner can add items directly to sprint without approval
+                approvalService.addItemToSprintDirectly(item.getId(), request.getSprintId());
 
-            // Note: requestApprovals will set status to PENDING_APPROVAL
-            // Reload the item to get updated status
-            item = backlogItemRepository.findById(item.getId())
-                    .orElseThrow(() -> new RuntimeException("Failed to reload created item"));
+                // Reload the item to get updated status (will be IN_SPRINT)
+                item = backlogItemRepository.findById(item.getId())
+                        .orElseThrow(() -> new RuntimeException("Failed to reload created item"));
+            } else {
+                // Developer needs approval from Product Owner only
+                if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
+                    throw new RuntimeException("Team member IDs are required when Developer creates SPRINT_READY item");
+                }
+
+                approvalService.requestApprovals(
+                        item.getId(),
+                        request.getSprintId(),
+                        request.getAssignedDeveloperIds(),
+                        userId,
+                        userRole
+                );
+
+                // Reload the item to get updated status (will be PENDING_APPROVAL)
+                item = backlogItemRepository.findById(item.getId())
+                        .orElseThrow(() -> new RuntimeException("Failed to reload created item"));
+            }
         }
 
         // Publish backlog item created event
@@ -128,7 +139,7 @@ public class BacklogService {
     }
 
     @Transactional
-    public BacklogItemDto updateBacklogItem(Long id, CreateBacklogItemRequest request) {
+    public BacklogItemDto updateBacklogItem(Long id, CreateBacklogItemRequest request, String userRole) {
         ProductBacklogItem item = backlogItemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Backlog item not found"));
 
@@ -149,15 +160,12 @@ public class BacklogService {
             String requestedStatus = request.getStatus().toUpperCase();
             ProductBacklogItem.ItemStatus newStatus = ProductBacklogItem.ItemStatus.valueOf(requestedStatus);
 
-            // If changing from BACKLOG to SPRINT_READY, validate and initiate approval workflow
+            // If changing from BACKLOG to SPRINT_READY, validate and handle based on user role
             if (oldStatus == ProductBacklogItem.ItemStatus.BACKLOG &&
                 newStatus == ProductBacklogItem.ItemStatus.SPRINT_READY) {
 
                 if (request.getSprintId() == null) {
                     throw new RuntimeException("Sprint ID is required when status is SPRINT_READY");
-                }
-                if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
-                    throw new RuntimeException("Team member IDs are required when status is SPRINT_READY");
                 }
 
                 // Validate sprint exists and is in PLANNED state
@@ -177,17 +185,32 @@ public class BacklogService {
                 item.setStatus(ProductBacklogItem.ItemStatus.SPRINT_READY);
                 item = backlogItemRepository.save(item);
 
-                // Initiate approval workflow
-                approvalService.requestApprovals(
-                        item.getId(),
-                        request.getSprintId(),
-                        request.getAssignedDeveloperIds(),
-                        item.getCreatedBy()
-                );
+                // Handle based on user role
+                if ("PRODUCT_OWNER".equals(userRole)) {
+                    // Product Owner can add items directly to sprint without approval
+                    approvalService.addItemToSprintDirectly(item.getId(), request.getSprintId());
 
-                // Reload the item to get updated status (will be PENDING_APPROVAL)
-                item = backlogItemRepository.findById(item.getId())
-                        .orElseThrow(() -> new RuntimeException("Failed to reload updated item"));
+                    // Reload the item to get updated status (will be IN_SPRINT)
+                    item = backlogItemRepository.findById(item.getId())
+                            .orElseThrow(() -> new RuntimeException("Failed to reload updated item"));
+                } else {
+                    // Developer needs approval from Product Owner only
+                    if (request.getAssignedDeveloperIds() == null || request.getAssignedDeveloperIds().isEmpty()) {
+                        throw new RuntimeException("Team member IDs are required when Developer updates to SPRINT_READY");
+                    }
+
+                    approvalService.requestApprovals(
+                            item.getId(),
+                            request.getSprintId(),
+                            request.getAssignedDeveloperIds(),
+                            item.getCreatedBy(),
+                            userRole
+                    );
+
+                    // Reload the item to get updated status (will be PENDING_APPROVAL)
+                    item = backlogItemRepository.findById(item.getId())
+                            .orElseThrow(() -> new RuntimeException("Failed to reload updated item"));
+                }
             } else {
                 // For other status changes, just update the status
                 item.setStatus(newStatus);

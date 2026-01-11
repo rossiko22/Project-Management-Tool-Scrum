@@ -1,14 +1,34 @@
-import { Controller, Get, Patch, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { NotificationService } from '../services/notification.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { NotificationType } from '../entities/notification.entity';
 import { rabbitMQLogger } from '../utils/rabbitmq-logger';
 
 @Controller('notifications')
-@UseGuards(JwtAuthGuard)
 export class NotificationController {
   constructor(private notificationService: NotificationService) {}
 
+  @Post()
+  async createNotification(@Body() body: { recipientId: number; type: NotificationType; payload: any }) {
+    const url = `/notifications`;
+    rabbitMQLogger.logInfo(`Creating notification for user ${body.recipientId}, type: ${body.type}`, url);
+
+    try {
+      const notification = await this.notificationService.createNotification(
+        body.recipientId,
+        body.type,
+        body.payload,
+      );
+      rabbitMQLogger.logInfo(`Notification ${notification.id} created for user ${body.recipientId}`, url);
+      return notification;
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to create notification: ${error.message}`, url);
+      throw error;
+    }
+  }
+
   @Get()
+  @UseGuards(JwtAuthGuard)
   async getUserNotifications(@Request() req) {
     const url = `/notifications`;
     rabbitMQLogger.logInfo(`Retrieving notifications for user ${req.user.userId}`, url);
@@ -24,6 +44,7 @@ export class NotificationController {
   }
 
   @Get('unread-count')
+  @UseGuards(JwtAuthGuard)
   async getUnreadCount(@Request() req) {
     const url = `/notifications/unread-count`;
     rabbitMQLogger.logInfo(`Retrieving unread notification count for user ${req.user.userId}`, url);
@@ -39,6 +60,7 @@ export class NotificationController {
   }
 
   @Patch(':id/read')
+  @UseGuards(JwtAuthGuard)
   async markAsRead(@Param('id') id: number) {
     const url = `/notifications/${id}/read`;
     rabbitMQLogger.logInfo(`Marking notification ${id} as read`, url);
@@ -54,6 +76,7 @@ export class NotificationController {
   }
 
   @Patch('mark-all-read')
+  @UseGuards(JwtAuthGuard)
   async markAllAsRead(@Request() req) {
     const url = `/notifications/mark-all-read`;
     rabbitMQLogger.logInfo(`Marking all notifications as read for user ${req.user.userId}`, url);

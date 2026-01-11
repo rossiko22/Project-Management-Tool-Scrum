@@ -251,7 +251,7 @@
     <div class="modal-content modal-large" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>
-          {{ viewingRetrospective ? 'Sprint Retrospective' : 'Create Sprint Retrospective' }}
+          {{ viewingRetrospective ? 'Sprint Retrospective' : (isEditingRetrospective ? 'Edit Sprint Retrospective' : 'Create Sprint Retrospective') }}
         </h2>
         <button class="close-btn" (click)="closeRetrospectiveModal()">&times;</button>
       </div>
@@ -292,6 +292,12 @@
           <div class="retro-section" *ngIf="retrospective.overallNotes">
             <h4>Overall Notes</h4>
             <p>{{ retrospective.overallNotes }}</p>
+          </div>
+
+          <div class="modal-actions" *ngIf="isScrumMaster">
+            <button type="button" class="btn btn-primary" (click)="editRetrospective()">
+              ✏️ Edit Retrospective
+            </button>
           </div>
         </div>
 
@@ -393,7 +399,7 @@
               Cancel
             </button>
             <button type="submit" class="btn btn-primary" [disabled]="loading">
-              {{ loading ? 'Creating...' : 'Create Retrospective' }}
+              {{ loading ? (isEditingRetrospective ? 'Updating...' : 'Creating...') : (isEditingRetrospective ? 'Update Retrospective' : 'Create Retrospective') }}
             </button>
           </div>
         </form>

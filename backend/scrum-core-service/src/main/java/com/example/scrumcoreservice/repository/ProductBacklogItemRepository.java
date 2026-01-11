@@ -14,6 +14,8 @@ public interface ProductBacklogItemRepository extends JpaRepository<ProductBackl
 
     List<ProductBacklogItem> findByProjectIdAndStatus(Long projectId, ProductBacklogItem.ItemStatus status);
 
+    long countByProjectIdAndStatus(Long projectId, ProductBacklogItem.ItemStatus status);
+
     @Query("SELECT MAX(p.position) FROM ProductBacklogItem p WHERE p.projectId = :projectId")
     Integer findMaxPositionByProjectId(Long projectId);
 

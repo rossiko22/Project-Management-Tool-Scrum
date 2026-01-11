@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-impediments',
@@ -25,4 +27,23 @@ import { CommonModule } from '@angular/common';
     .empty-state h3 { color: #2d3748; margin-bottom: 0.5rem; }
   `]
 })
-export class ImpedimentsComponent {}
+export class ImpedimentsComponent implements OnInit {
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  ngOnInit(): void {
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/impediments',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+  }
+}

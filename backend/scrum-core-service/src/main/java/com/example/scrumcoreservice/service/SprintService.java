@@ -103,15 +103,17 @@ public class SprintService {
                     "Please add items to the sprint.");
         }
 
-        // CRITICAL SCRUM VALIDATION: All items in sprint must be ready (SPRINT_READY status)
+        // CRITICAL SCRUM VALIDATION: All items in sprint must be ready (SPRINT_READY or IN_SPRINT status)
         for (SprintBacklogItem sbi : sprintItems) {
             ProductBacklogItem item = backlogItemRepository.findById(sbi.getBacklogItemId())
                     .orElseThrow(() -> new RuntimeException("Backlog item not found"));
 
-            if (item.getStatus() != ProductBacklogItem.ItemStatus.SPRINT_READY) {
+            // Allow both SPRINT_READY and IN_SPRINT statuses
+            if (item.getStatus() != ProductBacklogItem.ItemStatus.SPRINT_READY &&
+                item.getStatus() != ProductBacklogItem.ItemStatus.IN_SPRINT) {
                 throw new RuntimeException("Cannot start sprint: Backlog item '" + item.getTitle() +
                         "' is not ready for sprint (status: " + item.getStatus() + "). " +
-                        "All items must have SPRINT_READY status before sprint can start.");
+                        "All items must have SPRINT_READY or IN_SPRINT status before sprint can start.");
             }
         }
 
@@ -122,7 +124,10 @@ public class SprintService {
         int committedPoints = 0;
         for (SprintBacklogItem sbi : sprintItems) {
             backlogItemRepository.findById(sbi.getBacklogItemId()).ifPresent(item -> {
-                item.setStatus(ProductBacklogItem.ItemStatus.IN_SPRINT);
+                // Update to IN_SPRINT if not already (some items may already be IN_SPRINT from approval)
+                if (item.getStatus() != ProductBacklogItem.ItemStatus.IN_SPRINT) {
+                    item.setStatus(ProductBacklogItem.ItemStatus.IN_SPRINT);
+                }
                 item.setBoardColumn(ProductBacklogItem.BoardColumn.TO_DO); // All items start in TO_DO
                 backlogItemRepository.save(item);
             });
@@ -203,7 +208,7 @@ public class SprintService {
 
         sprint = sprintRepository.save(sprint);
 
-        // Publish sprint completed event
+        // Publish sprint completed event to Kafka
         SprintEvent event = SprintEvent.builder()
                 .sprintId(sprint.getId())
                 .projectId(sprint.getProjectId())
@@ -221,7 +226,54 @@ public class SprintService {
                 .build();
         eventPublisher.publishSprintEvent(event);
 
+        // DIRECT CALL: Synchronously notify reporting-service about sprint completion
+        // This ensures metrics are saved immediately and we get confirmation
+        try {
+            // Count remaining backlog items for burndown calculation
+            long remainingBacklogCount = backlogItemRepository.countByProjectIdAndStatus(
+                sprint.getProjectId(), ProductBacklogItem.ItemStatus.BACKLOG);
+
+            notifyReportingService(sprint.getId(), sprint.getProjectId(), committedPoints, completedPoints,
+                storiesCompleted, sprint.getName(), sprint.getEndDate(), (int)remainingBacklogCount);
+            System.out.println("✅ Sprint metrics sent to reporting-service: " + completedPoints + " points, " + remainingBacklogCount + " items remaining");
+        } catch (Exception e) {
+            System.err.println("⚠️ Failed to notify reporting-service, but sprint is completed: " + e.getMessage());
+            // Don't fail the sprint completion if reporting fails - it's logged for admin review
+        }
+
         return SprintDto.fromEntity(sprint);
+    }
+
+    private void notifyReportingService(Long sprintId, Long projectId, int committedPoints, int completedPoints, int storiesCompleted, String sprintName, java.time.LocalDate endDate, int backlogItemsRemaining) {
+        try {
+            // Build request body
+            String requestBody = String.format(
+                "{\"sprintId\":%d,\"projectId\":%d,\"teamId\":1,\"sprintName\":\"%s\",\"endDate\":\"%s\",\"completedPoints\":%d,\"velocity\":%d,\"storiesCompleted\":%d,\"backlogItemsRemaining\":%d}",
+                sprintId, projectId, sprintName, endDate.toString(), completedPoints, completedPoints, storiesCompleted, backlogItemsRemaining
+            );
+
+            // Send HTTP POST to reporting-service
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(5))
+                .build();
+
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(java.net.URI.create("http://localhost:3001/api/sync/sprint-completion"))
+                .header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString(requestBody))
+                .timeout(java.time.Duration.ofSeconds(10))
+                .build();
+
+            java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200 || response.statusCode() == 201) {
+                System.out.println("✅ Reporting-service acknowledged sprint completion: " + response.body());
+            } else {
+                System.err.println("⚠️ Reporting-service returned error code " + response.statusCode() + ": " + response.body());
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to call reporting-service: " + e.getMessage(), e);
+        }
     }
 
     @Transactional
@@ -312,12 +364,12 @@ public class SprintService {
             throw new RuntimeException("Backlog item is already pending approval for a sprint");
         }
 
-        // Trigger team approval workflow
-        // All team members except requester must approve
-        approvalService.requestApprovals(backlogItemId, sprintId, teamMemberIds, requesterId);
+        // Trigger approval workflow
+        // Product Owner approval required when Developer creates/moves item
+        approvalService.requestApprovals(backlogItemId, sprintId, teamMemberIds, requesterId, "DEVELOPER");
 
         System.out.println("Approval workflow initiated for item " + backlogItemId + " in sprint " + sprintId +
-                ". Waiting for team approvals.");
+                ". Waiting for Product Owner approval.");
     }
 
     @Transactional

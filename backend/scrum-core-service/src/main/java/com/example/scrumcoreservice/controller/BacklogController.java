@@ -92,16 +92,20 @@ public class BacklogController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Update backlog item", description = "Update backlog item (PO only)")
+    @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Update backlog item", description = "Update backlog item")
     public ResponseEntity<BacklogItemDto> updateBacklogItem(
             @PathVariable Long id,
             @Valid @RequestBody CreateBacklogItemRequest request,
+            @AuthenticationPrincipal UserPrincipal principal,
             HttpServletRequest httpRequest) {
         String url = httpRequest.getRequestURI();
         logger.logInfo("Updating backlog item: " + id, url);
         try {
-            BacklogItemDto item = backlogService.updateBacklogItem(id, request);
+            // Determine user's primary Scrum role
+            String userRole = principal.getRoles().contains("PRODUCT_OWNER") ? "PRODUCT_OWNER" : "DEVELOPER";
+
+            BacklogItemDto item = backlogService.updateBacklogItem(id, request, userRole);
             logger.logInfo("Backlog item updated successfully: " + id, url);
             return ResponseEntity.ok(item);
         } catch (Exception e) {

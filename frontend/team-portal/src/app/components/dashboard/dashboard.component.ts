@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { SprintService } from '../../services/sprint.service';
 import { TaskService } from '../../services/task.service';
@@ -44,11 +45,25 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private taskService: TaskService,
     private impedimentService: ImpedimentService,
     private projectContext: ProjectContextService,
-    public authService: AuthService
+    public authService: AuthService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
     console.log('[Dashboard] Component initialized');
+
+    // Track page visit
+    const userId = this.authService.currentUserValue?.id;
+    if (userId) {
+      this.http.post('https://backend-logger-361o.onrender.com/track/', {
+        calledService: '/dashboard',
+        id: userId
+      }).subscribe({
+        next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+        error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+      });
+    }
+
     this.projectSubscription = this.projectContext.selectedProject$.subscribe(project => {
       console.log('[Dashboard] Selected project changed:', project);
       this.selectedProject = project;

@@ -39,7 +39,8 @@ public class ApprovalController {
                 request.getBacklogItemId(),
                 request.getSprintId(),
                 request.getAssignedDeveloperIds(),
-                principal.getUserId() // Pass requester ID
+                principal.getUserId(), // Pass requester ID
+                principal.getRoles().isEmpty() ? "DEVELOPER" : principal.getRoles().get(0) // Pass requester role
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).build();

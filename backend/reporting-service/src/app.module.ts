@@ -6,6 +6,8 @@ import { SprintMetricsModule } from './modules/sprint-metrics.module';
 import { BurndownModule } from './modules/burndown.module';
 import { CumulativeFlowModule } from './modules/cumulative-flow.module';
 import { VelocityModule } from './modules/velocity.module';
+import { SyncModule } from './modules/sync.module';
+import { KafkaModule } from './modules/kafka.module';
 import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
 
 @Module({
@@ -32,6 +34,8 @@ import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware'
     BurndownModule,
     CumulativeFlowModule,
     VelocityModule,
+    SyncModule,
+    KafkaModule,
   ],
   controllers: [AppController],
 })

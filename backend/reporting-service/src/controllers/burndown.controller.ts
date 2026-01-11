@@ -37,6 +37,21 @@ export class BurndownController {
     }
   }
 
+  @Get('project/:projectId')
+  async getProjectBurndown(@Param('projectId', ParseIntPipe) projectId: number) {
+    const url = `/api/burndown/project/${projectId}`;
+    rabbitMQLogger.logInfo(`Retrieving project burndown chart for project ${projectId}`, url);
+
+    try {
+      const result = await this.burndownService.getProjectBurndown(projectId);
+      rabbitMQLogger.logInfo(`Retrieved ${result.length} burndown data points for project ${projectId}`, url);
+      return result;
+    } catch (error) {
+      rabbitMQLogger.logError(`Failed to retrieve project burndown chart: ${error.message}`, url);
+      throw error;
+    }
+  }
+
   @Post('generate/:sprintId')
   async generateBurndownData(@Param('sprintId', ParseIntPipe) sprintId: number) {
     const url = `/api/burndown/generate/${sprintId}`;

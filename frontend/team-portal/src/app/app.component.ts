@@ -7,11 +7,12 @@ import { AuthService } from './services/auth.service';
 import { ProjectService } from './services/project.service';
 import { ProjectContextService } from './services/project-context.service';
 import { Project } from './models/project.model';
+import { NotificationsComponent } from './components/notifications/notifications.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, CommonModule, FormsModule],
+  imports: [RouterOutlet, RouterLink, CommonModule, FormsModule, NotificationsComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })

@@ -11,6 +11,9 @@ export class TeamVelocity {
   @Column({ name: 'sprint_id', type: 'bigint' })
   sprintId: number;
 
+  @Column({ name: 'sprint_name' })
+  sprintName: string;
+
   @Column()
   velocity: number;
 

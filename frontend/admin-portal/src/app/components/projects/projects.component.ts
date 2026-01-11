@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } 
 import { Router, RouterModule } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { UserService } from '../../services/user.service';
+import { AuthService } from '../../services/auth.service';
 import { Project, CreateProjectRequest } from '../../models/project.model';
 import { User } from '../../models/user.model';
 import { forkJoin } from 'rxjs';
@@ -34,7 +35,8 @@ export class ProjectsComponent implements OnInit {
     private projectService: ProjectService,
     private userService: UserService,
     private formBuilder: FormBuilder,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     this.createProjectForm = this.formBuilder.group({
       name: ['', Validators.required],
@@ -183,5 +185,10 @@ export class ProjectsComponent implements OnInit {
 
   goToDashboard(): void {
     this.router.navigate(['/dashboard']);
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigate(['/login']);
   }
 }

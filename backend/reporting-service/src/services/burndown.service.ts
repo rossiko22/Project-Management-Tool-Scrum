@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DailyBurndown } from '../entities/daily-burndown.entity';
+import { ProjectBurndown } from '../entities/project-burndown.entity';
 import { CreateBurndownDto } from '../dto/create-burndown.dto';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class BurndownService {
   constructor(
     @InjectRepository(DailyBurndown)
     private readonly burndownRepository: Repository<DailyBurndown>,
+    @InjectRepository(ProjectBurndown)
+    private readonly projectBurndownRepository: Repository<ProjectBurndown>,
   ) {}
 
   async create(createDto: CreateBurndownDto): Promise<DailyBurndown> {
@@ -20,6 +23,13 @@ export class BurndownService {
     return this.burndownRepository.find({
       where: { sprintId },
       order: { date: 'ASC' },
+    });
+  }
+
+  async getProjectBurndown(projectId: number): Promise<ProjectBurndown[]> {
+    return this.projectBurndownRepository.find({
+      where: { projectId },
+      order: { sprintNumber: 'ASC' },
     });
   }
 

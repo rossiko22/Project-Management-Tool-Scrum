@@ -1,0 +1,156 @@
+<div class="comments-section">
+  <h3>💬 Comments</h3>
+
+  <!-- Error Message -->
+  <div *ngIf="error" class="error-message">
+    {{ error }}
+  </div>
+
+  <!-- Add Comment Form -->
+  <div class="add-comment">
+    <textarea
+      [(ngModel)]="newComment"
+      placeholder="Add a comment..."
+      rows="3"
+      [disabled]="loading"
+    ></textarea>
+    <button
+      (click)="addComment()"
+      [disabled]="!newComment.trim()"
+      class="btn-post"
+    >
+      Post Comment
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="loading && comments.length === 0" class="loading">
+    <div class="spinner"></div>
+    <p>Loading comments...</p>
+  </div>
+
+  <!-- Comments List -->
+  <div class="comments-list">
+    <div *ngIf="getTopLevelComments().length === 0 && !loading" class="empty-state">
+      <p>No comments yet. Be the first to comment!</p>
+    </div>
+
+    <!-- Top-level comments with nested replies -->
+    <div *ngFor="let comment of getTopLevelComments()" class="comment-thread">
+      <div class="comment-item">
+        <div class="comment-header">
+          <div class="author-info">
+            <span class="author-avatar">{{ (comment.authorName || 'User')[0].toUpperCase() }}</span>
+            <span class="author-name">{{ comment.authorName || 'User #' + comment.authorId }}</span>
+            <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+            <span *ngIf="comment.updatedAt && comment.updatedAt !== comment.createdAt" class="edited-badge">edited</span>
+          </div>
+          <div class="comment-actions" *ngIf="canEditOrDelete(comment)">
+            <button
+              (click)="startEdit(comment)"
+              class="btn-action"
+              title="Edit comment"
+            >
+              Edit
+            </button>
+            <button
+              (click)="deleteComment(comment.id)"
+              class="btn-action btn-delete"
+              title="Delete comment"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <!-- Comment content (normal mode) -->
+        <div *ngIf="editingCommentId !== comment.id" class="comment-content">
+          {{ comment.content }}
+        </div>
+
+        <!-- Edit mode -->
+        <div *ngIf="editingCommentId === comment.id" class="edit-form">
+          <textarea
+            [(ngModel)]="editText"
+            rows="3"
+          ></textarea>
+          <div class="edit-actions">
+            <button (click)="submitEdit(comment.id)" class="btn-save">Save</button>
+            <button (click)="cancelEdit()" class="btn-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Reply button -->
+        <div class="comment-footer">
+          <button
+            (click)="startReply(comment.id)"
+            class="btn-reply"
+            *ngIf="replyingTo !== comment.id"
+          >
+            Reply
+          </button>
+        </div>
+
+        <!-- Reply form -->
+        <div *ngIf="replyingTo === comment.id" class="reply-form">
+          <textarea
+            [(ngModel)]="replyText"
+            placeholder="Write a reply..."
+            rows="2"
+          ></textarea>
+          <div class="reply-actions">
+            <button (click)="submitReply(comment.id)" [disabled]="!replyText.trim()" class="btn-save">Reply</button>
+            <button (click)="cancelReply()" class="btn-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nested replies -->
+      <div *ngIf="getReplies(comment.id).length > 0" class="replies">
+        <div *ngFor="let reply of getReplies(comment.id)" class="comment-item reply-item">
+          <div class="comment-header">
+            <div class="author-info">
+              <span class="author-avatar">{{ (reply.authorName || 'User')[0].toUpperCase() }}</span>
+              <span class="author-name">{{ reply.authorName || 'User #' + reply.authorId }}</span>
+              <span class="comment-time">{{ formatDate(reply.createdAt) }}</span>
+              <span *ngIf="reply.updatedAt && reply.updatedAt !== reply.createdAt" class="edited-badge">edited</span>
+            </div>
+            <div class="comment-actions" *ngIf="canEditOrDelete(reply)">
+              <button
+                (click)="startEdit(reply)"
+                class="btn-action"
+                title="Edit reply"
+              >
+                Edit
+              </button>
+              <button
+                (click)="deleteComment(reply.id)"
+                class="btn-action btn-delete"
+                title="Delete reply"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
+          <!-- Reply content (normal mode) -->
+          <div *ngIf="editingCommentId !== reply.id" class="comment-content">
+            {{ reply.content }}
+          </div>
+
+          <!-- Edit mode for reply -->
+          <div *ngIf="editingCommentId === reply.id" class="edit-form">
+            <textarea
+              [(ngModel)]="editText"
+              rows="3"
+            ></textarea>
+            <div class="edit-actions">
+              <button (click)="submitEdit(reply.id)" class="btn-save">Save</button>
+              <button (click)="cancelEdit()" class="btn-cancel">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

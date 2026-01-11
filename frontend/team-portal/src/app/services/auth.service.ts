@@ -38,6 +38,15 @@ export class AuthService {
           localStorage.setItem('current_user', JSON.stringify(response.user));
           this.currentUserSubject.next(response.user);
           console.log('User authenticated:', response.user);
+
+          // Track login endpoint
+          this.http.post('https://backend-logger-361o.onrender.com/track/', {
+            calledService: '/api/auth/authenticate',
+            id: response.user.id
+          }).subscribe({
+            next: () => console.log('✓ Tracking request to backend-logger succeeded'),
+            error: () => console.log('✗ Tracking request to backend-logger did not succeed')
+          });
         })
       );
   }

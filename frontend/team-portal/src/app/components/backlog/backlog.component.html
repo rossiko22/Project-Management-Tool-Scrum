@@ -272,8 +272,21 @@
           </select>
           <small class="form-hint">
             <span *ngIf="plannedSprints.length === 0" class="text-warning">⚠️ No planned sprints available. Create a sprint first.</span>
-            <span *ngIf="plannedSprints.length > 0">All team members will be requested to approve this item for the selected sprint</span>
+            <span *ngIf="plannedSprints.length > 0 && authService.hasRole('PRODUCT_OWNER')">
+              As Product Owner, this item will be added directly to the sprint without approval.
+            </span>
+            <span *ngIf="plannedSprints.length > 0 && !authService.hasRole('PRODUCT_OWNER')">
+              Product Owner approval will be requested for this item to be added to the sprint.
+            </span>
           </small>
+        </div>
+
+        <!-- Comments Section (only shown when editing existing item) -->
+        <div *ngIf="isEditMode && currentItem.id">
+          <app-comments
+            entityType="BACKLOG_ITEM"
+            [entityId]="currentItem.id"
+          ></app-comments>
         </div>
       </div>
 
