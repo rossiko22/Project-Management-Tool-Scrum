@@ -49,7 +49,11 @@ public class RetrospectiveController {
     @PreAuthorize("hasAnyRole('PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
     @Operation(summary = "Get retrospective by sprint", description = "Get retrospective for a specific sprint")
     public ResponseEntity<RetrospectiveDto> getRetrospectiveBySprintId(@PathVariable Long sprintId) {
-        return ResponseEntity.ok(retrospectiveService.getRetrospectiveBySprintId(sprintId));
+        RetrospectiveDto retrospective = retrospectiveService.getRetrospectiveBySprintId(sprintId);
+        if (retrospective == null) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(retrospective);
     }
 
     @GetMapping("/{id}")

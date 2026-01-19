@@ -11,7 +11,7 @@
         class="form-control"
         [ngModel]="selectedSprint?.id"
         (ngModelChange)="onSprintChange($event)">
-        <option *ngFor="let sprint of sprints" [value]="sprint.id">
+        <option *ngFor="let sprint of sprints" [ngValue]="sprint.id">
           {{ sprint.name }}
           <span *ngIf="sprint.status === 'ACTIVE'"> (Active)</span>
           <span *ngIf="sprint.status === 'PLANNED'"> (Planned)</span>
@@ -164,7 +164,7 @@
         <div class="event-header">
           <h2>Daily Scrum</h2>
           <button
-            *ngIf="canCreateDailyScrum && selectedSprint"
+            *ngIf="canCreateDailyScrumForSprint && selectedSprint"
             class="btn btn-primary"
             (click)="openCreateDailyModal()">
             + Create Daily Scrum Event
@@ -175,6 +175,9 @@
           <p class="info-text">
             The Daily Scrum is a 15-minute event for the Developers to inspect progress toward the Sprint Goal
             and adapt the Sprint Backlog as necessary. Create events and invite team members.
+          </p>
+          <p class="info-text" *ngIf="selectedSprint?.status === 'PLANNED'">
+            Daily Scrum events can be scheduled after the sprint starts.
           </p>
         </div>
 
@@ -244,7 +247,7 @@
         <div class="empty-daily" *ngIf="dailyScrumEvents.length === 0">
           <p>No Daily Scrum events created for this sprint yet.</p>
           <button
-            *ngIf="canCreateDailyScrum"
+            *ngIf="canCreateDailyScrumForSprint"
             class="btn btn-secondary"
             (click)="openCreateDailyModal()">
             Create Your First Daily Scrum Event
@@ -323,13 +326,13 @@
               + Add Retrospective Item
             </button>
             <button
-              *ngIf="!retrospective && isScrumMaster"
+              *ngIf="!retrospective && canCreateRetrospective"
               class="btn btn-primary"
               (click)="openRetrospectiveModal()">
               + Create Retrospective
             </button>
             <button
-              *ngIf="retrospective && isScrumMaster"
+              *ngIf="retrospective && canCreateRetrospective"
               class="btn btn-secondary"
               (click)="editRetrospective()">
               Edit
@@ -439,7 +442,7 @@
               Add Your Feedback
             </button>
             <button
-              *ngIf="isScrumMaster"
+              *ngIf="canCreateRetrospective"
               class="btn btn-secondary"
               (click)="openRetrospectiveModal()">
               Create Retrospective

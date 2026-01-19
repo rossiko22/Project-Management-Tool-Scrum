@@ -27,8 +27,8 @@ public class ImpedimentController {
     private final ImpedimentService impedimentService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'DEVELOPER', 'ORGANIZATION_ADMIN')")
-    @Operation(summary = "Create impediment", description = "Create a new impediment (Scrum Master or Developers)")
+    @PreAuthorize("hasAnyRole('SCRUM_MASTER', 'DEVELOPER', 'PRODUCT_OWNER', 'ORGANIZATION_ADMIN')")
+    @Operation(summary = "Create impediment", description = "Create a new impediment (Scrum Master, Product Owner, or Developers)")
     public ResponseEntity<ImpedimentDto> createImpediment(
             @RequestBody CreateImpedimentRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {

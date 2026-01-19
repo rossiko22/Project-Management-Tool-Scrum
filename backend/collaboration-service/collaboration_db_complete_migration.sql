@@ -45,7 +45,9 @@ CREATE TYPE notification_type AS ENUM (
     'BACKLOG_ITEM_REJECTED',
     'BACKLOG_ITEM_READY_FOR_SPRINT',
     'ITEM_MOVED_TO_REVIEW',
-    'ITEM_RETURNED_TO_BACKLOG'
+    'ITEM_RETURNED_TO_BACKLOG',
+    'DAILY_SCRUM_INVITATION',
+    'RETROSPECTIVE_ITEM_ADDED'
 );
 
 -- ============================================================

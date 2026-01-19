@@ -237,32 +237,32 @@
   transition: all var(--transition-fast);
 
   &.status-todo {
-    background-color: #eff6ff;
+    background-color: var(--info-light);
     border-color: var(--status-todo);
     color: var(--status-todo);
   }
 
   &.status-in-progress {
-    background-color: #fff7ed;
+    background-color: var(--warning-light);
     border-color: var(--status-in-progress);
     color: var(--status-in-progress);
   }
 
   &.status-review {
-    background-color: #faf5ff;
+    background-color: var(--primary-subtle);
     border-color: var(--status-review);
     color: var(--status-review);
   }
 
   &.status-done {
-    background-color: #f0fdf4;
+    background-color: var(--success-light);
     border-color: var(--status-done);
     color: var(--status-done);
   }
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
   }
 }
 

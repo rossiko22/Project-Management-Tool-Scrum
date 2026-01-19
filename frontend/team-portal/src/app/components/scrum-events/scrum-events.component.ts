@@ -63,6 +63,8 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
   // Active event tab
   activeEvent: 'planning' | 'daily' | 'review' | 'retrospective' = 'planning';
 
+  private manualSelectedSprintId: number | null = null;
+
   // Daily Scrum Events
   dailyScrumEvents: DailyScrumEvent[] = [];
   showCreateDailyModal = false;
@@ -118,7 +120,6 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
       });
     }
 
-    this.loadSprints();
     this.loadTeamMembers();
 
     // Subscribe to project changes
@@ -152,7 +153,19 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
   }
 
   get canAddRetroItem(): boolean {
-    return this.isDeveloper || this.isProductOwner || this.authService.hasRole('ORGANIZATION_ADMIN');
+    if (!this.selectedSprint) {
+      return false;
+    }
+    return (this.isDeveloper || this.isProductOwner || this.authService.hasRole('ORGANIZATION_ADMIN')) &&
+      (this.isSprintActive || this.isSprintCompleted);
+  }
+
+  get canCreateDailyScrumForSprint(): boolean {
+    return this.canCreateDailyScrum && this.isSprintActive;
+  }
+
+  get canCreateRetrospective(): boolean {
+    return this.isScrumMaster && this.isSprintCompleted;
   }
 
   get currentProjectId(): number {
@@ -180,8 +193,13 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
     return this.sprints.find(s => s.id === id);
   }
 
-  onSprintChange(sprintId: number): void {
-    const sprint = this.findSprintById(sprintId);
+  onSprintChange(sprintId: number | string): void {
+    const normalizedId = typeof sprintId === 'string' ? parseInt(sprintId, 10) : sprintId;
+    if (Number.isNaN(normalizedId)) {
+      return;
+    }
+    this.manualSelectedSprintId = normalizedId;
+    const sprint = this.findSprintById(normalizedId);
     if (sprint) {
       this.selectSprint(sprint);
     }
@@ -193,15 +211,33 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
       next: (sprints) => {
         // Include all sprints - PLANNED, ACTIVE, and COMPLETED
         this.sprints = sprints.sort((a, b) => b.id - a.id);
+
+        // Keep current selection if it still exists in the refreshed list.
+        if (this.manualSelectedSprintId != null) {
+          const manualSelection = this.sprints.find(s => s.id === this.manualSelectedSprintId);
+          if (manualSelection) {
+            this.selectSprint(manualSelection);
+            return;
+          }
+        }
+
+        const currentSelection = this.selectedSprint
+          ? this.sprints.find(s => s.id === this.selectedSprint?.id)
+          : null;
+        if (currentSelection) {
+          this.selectSprint(currentSelection);
+          return;
+        }
+
         // Auto-select active sprint first, then planned, then most recent
-        const activeSprint = sprints.find(s => s.status === 'ACTIVE');
-        const plannedSprint = sprints.find(s => s.status === 'PLANNED');
+        const activeSprint = this.sprints.find(s => s.status === 'ACTIVE');
+        const plannedSprint = this.sprints.find(s => s.status === 'PLANNED');
         if (activeSprint) {
           this.selectSprint(activeSprint);
         } else if (plannedSprint) {
           this.selectSprint(plannedSprint);
-        } else if (sprints.length > 0) {
-          this.selectSprint(sprints[0]);
+        } else if (this.sprints.length > 0) {
+          this.selectSprint(this.sprints[0]);
         } else {
           this.loading = false;
         }
@@ -231,7 +267,11 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
   selectSprint(sprint: Sprint): void {
     this.selectedSprint = sprint;
     this.loadSprintBacklog();
-    this.loadRetrospective();
+    if (sprint.status === 'ACTIVE' || sprint.status === 'COMPLETED') {
+      this.loadRetrospective();
+    } else {
+      this.retrospective = null;
+    }
     this.loadDailyScrumEvents();
     this.loadRetroContributions();
   }
@@ -348,6 +388,10 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
 
   // Daily Scrum Event methods
   openCreateDailyModal(): void {
+    if (!this.isSprintActive) {
+      this.toastService.warning('Daily Scrum can only be scheduled for active sprints.');
+      return;
+    }
     this.newDailyEvent = {
       date: this.todayDate,
       time: '09:00',
@@ -385,6 +429,10 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
 
   createDailyScrumEvent(): void {
     if (!this.selectedSprint) return;
+    if (!this.isSprintActive) {
+      this.toastService.warning('Daily Scrum can only be scheduled for active sprints.');
+      return;
+    }
     if (!this.newDailyEvent.date || !this.newDailyEvent.time) {
       this.toastService.error('Please select date and time');
       return;
@@ -479,6 +527,10 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
   // Retrospective methods
   openRetrospectiveModal(): void {
     if (!this.selectedSprint) return;
+    if (!this.isSprintCompleted) {
+      this.toastService.warning('Retrospectives are only available after a sprint is completed.');
+      return;
+    }
 
     this.newRetrospective = {
       sprintId: this.selectedSprint.id,
@@ -494,6 +546,10 @@ export class ScrumEventsComponent implements OnInit, OnDestroy {
 
   editRetrospective(): void {
     if (!this.retrospective) return;
+    if (!this.isSprintCompleted) {
+      this.toastService.warning('Retrospectives can only be edited after a sprint is completed.');
+      return;
+    }
 
     this.newRetrospective = {
       sprintId: this.retrospective.sprintId,

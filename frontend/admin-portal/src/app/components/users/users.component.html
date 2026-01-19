@@ -121,8 +121,8 @@
         </div>
 
         <div class="form-actions">
-          <button type="button" class="btn-secondary" (click)="toggleCreateForm()">Cancel</button>
-          <button type="submit" class="btn-primary" [disabled]="createUserForm.invalid || loading">
+          <button type="button" class="btn btn-secondary" (click)="toggleCreateForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="createUserForm.invalid || loading">
             {{ loading ? 'Creating...' : 'Create User' }}
           </button>
         </div>

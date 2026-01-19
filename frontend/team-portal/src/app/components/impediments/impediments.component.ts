@@ -100,6 +100,7 @@ export class ImpedimentsComponent implements OnInit, OnDestroy {
   get canCreateImpediment(): boolean {
     return this.authService.hasRole('SCRUM_MASTER') ||
            this.authService.hasRole('DEVELOPER') ||
+           this.authService.hasRole('PRODUCT_OWNER') ||
            this.authService.hasRole('ORGANIZATION_ADMIN');
   }
 

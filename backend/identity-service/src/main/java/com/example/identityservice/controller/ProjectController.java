@@ -3,6 +3,7 @@ package com.example.identityservice.controller;
 import com.example.identityservice.dto.AssignTeamRequest;
 import com.example.identityservice.dto.CreateProjectRequest;
 import com.example.identityservice.dto.ProjectDto;
+import com.example.identityservice.dto.UpdateProjectRequest;
 import com.example.identityservice.entity.Project;
 import com.example.identityservice.security.JwtUtil;
 import com.example.identityservice.service.ProjectService;
@@ -173,6 +174,21 @@ public class ProjectController {
 
         Project project = projectService.getProjectById(id);
         logger.logInfo("Retrieved project: " + project.getName(), url);
+        return ResponseEntity.ok(ProjectDto.fromEntity(project));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ORGANIZATION_ADMIN')")
+    public ResponseEntity<ProjectDto> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateProjectRequest request,
+            HttpServletRequest httpRequest) {
+
+        String url = httpRequest.getRequestURI();
+        logger.logInfo("Updating project: " + id, url);
+
+        Project project = projectService.updateProject(id, request);
+        logger.logInfo("Project updated successfully. ID: " + project.getId(), url);
         return ResponseEntity.ok(ProjectDto.fromEntity(project));
     }
 

@@ -88,19 +88,19 @@
   &.open {
     background: var(--danger-light);
     .stat-value { color: var(--danger-color); }
-    .stat-label { color: #991B1B; }
+    .stat-label { color: var(--danger-color); }
   }
 
   &.in-progress {
     background: var(--warning-light);
     .stat-value { color: var(--warning-color); }
-    .stat-label { color: #92400E; }
+    .stat-label { color: var(--warning-color); }
   }
 
   &.resolved {
     background: var(--success-light);
     .stat-value { color: var(--success-color); }
-    .stat-label { color: #065F46; }
+    .stat-label { color: var(--success-color); }
   }
 }
 
@@ -190,19 +190,19 @@
 
   &.status-open {
     background: var(--danger-light);
-    color: #991B1B;
+    color: var(--danger-color);
     border: 1px solid var(--danger-color);
   }
 
   &.status-in-progress {
     background: var(--warning-light);
-    color: #92400E;
+    color: var(--warning-color);
     border: 1px solid var(--warning-color);
   }
 
   &.status-resolved {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
     border: 1px solid var(--success-color);
   }
 }
@@ -389,7 +389,7 @@
     padding: var(--spacing-md);
     background: var(--success-light);
     border-radius: var(--radius-md);
-    color: #065F46;
+    color: var(--success-color);
     line-height: 1.6;
     white-space: pre-wrap;
   }
@@ -533,7 +533,7 @@ textarea.form-control {
   border-color: var(--success-color);
 
   &:hover:not(:disabled) {
-    background: #059669;
+    background: var(--success-color);
   }
 }
 
@@ -543,7 +543,7 @@ textarea.form-control {
   border-color: var(--danger-color);
 
   &:hover:not(:disabled) {
-    background: #DC2626;
+    background: var(--danger-color);
   }
 }
 

@@ -88,28 +88,28 @@ import { AuthService } from '../../services/auth.service';
     }
 
     h1 {
-      color: #2d3748;
+      color: var(--text-primary);
       margin-bottom: 0.5rem;
     }
 
     p {
-      color: #718096;
+      color: var(--text-muted);
       margin-bottom: 2rem;
     }
 
     .test-section {
       margin: 2rem 0;
       padding: 1.5rem;
-      background: white;
+      background: var(--bg-primary);
       border-radius: 0.5rem;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .test-section h3 {
-      color: #4a5568;
+      color: var(--text-secondary);
       margin-bottom: 1rem;
       padding-bottom: 0.5rem;
-      border-bottom: 2px solid #e2e8f0;
+      border-bottom: 2px solid var(--border-color);
     }
 
     .btn {
@@ -127,58 +127,58 @@ import { AuthService } from '../../services/auth.service';
     }
 
     .btn-danger {
-      background: #f56565;
+      background: var(--danger-color);
       color: white;
     }
 
     .btn-danger:hover {
-      background: #e53e3e;
+      background: var(--danger-color);
     }
 
     .btn-warning {
-      background: #ed8936;
+      background: var(--warning-color);
       color: white;
     }
 
     .btn-warning:hover {
-      background: #dd6b20;
+      background: var(--warning-color);
     }
 
     .btn-success {
-      background: #48bb78;
+      background: var(--success-color);
       color: white;
     }
 
     .btn-success:hover {
-      background: #38a169;
+      background: var(--success-color);
     }
 
     .btn-info {
-      background: #4299e1;
+      background: var(--info-color);
       color: white;
     }
 
     .btn-info:hover {
-      background: #3182ce;
+      background: var(--info-color);
     }
 
     .btn-secondary {
-      background: #718096;
+      background: var(--text-muted);
       color: white;
     }
 
     .btn-secondary:hover {
-      background: #4a5568;
+      background: var(--text-secondary);
     }
 
     .btn-outline {
       background: transparent;
-      color: #667eea;
-      border: 2px solid #667eea;
+      color: var(--primary-color);
+      border: 2px solid var(--primary-color);
     }
 
     .btn-outline:hover {
-      background: #667eea;
+      background: var(--primary-color);
       color: white;
     }
   `]

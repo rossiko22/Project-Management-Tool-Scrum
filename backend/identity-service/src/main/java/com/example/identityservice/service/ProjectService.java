@@ -1,6 +1,7 @@
 package com.example.identityservice.service;
 
 import com.example.identityservice.dto.CreateProjectRequest;
+import com.example.identityservice.dto.UpdateProjectRequest;
 import com.example.identityservice.entity.Project;
 import com.example.identityservice.entity.Team;
 import com.example.identityservice.events.ProjectEvent;
@@ -137,12 +138,30 @@ public class ProjectService {
     }
 
     @Transactional
-    public Project updateProject(Long id, String name, String description) {
+    public Project updateProject(Long id, UpdateProjectRequest request) {
         Project project = projectRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Project not found"));
 
-        project.setName(name);
-        project.setDescription(description);
+        if (request.getName() != null && !request.getName().isBlank()) {
+            project.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            project.setDescription(request.getDescription());
+        }
+        if (request.getDefaultSprintLength() != null) {
+            project.setDefaultSprintLength(request.getDefaultSprintLength());
+        }
+        if (request.getTimezone() != null && !request.getTimezone().isBlank()) {
+            project.setTimezone(request.getTimezone());
+        }
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            try {
+                project.setStatus(Project.ProjectStatus.valueOf(request.getStatus().toUpperCase()));
+            } catch (IllegalArgumentException ex) {
+                throw new RuntimeException("Invalid project status: " + request.getStatus());
+            }
+        }
+
         project = projectRepository.save(project);
 
         // Publish project updated event

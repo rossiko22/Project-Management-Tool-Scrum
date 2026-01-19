@@ -66,6 +66,7 @@
 
     <div *ngIf="filteredItems.length > 0" class="backlog-list-container">
       <div class="list-header">
+        <span class="col-drag" aria-hidden="true"></span>
         <span class="col-priority">#</span>
         <span class="col-type">Type</span>
         <span class="col-title">Title</span>
@@ -88,7 +89,7 @@
           [class.draggable]="canReorder()"
         >
           <!-- Drag Handle -->
-          <div *ngIf="canReorder()" class="drag-handle" cdkDragHandle>
+          <div class="drag-handle" [class.is-hidden]="!canReorder()" cdkDragHandle>
             <span>⋮⋮</span>
           </div>
 

@@ -39,14 +39,14 @@
         }
 
         @GetMapping
-        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER')")
+        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER')")
         @Operation(summary = "Get all users", description = "Get list of all users")
         public ResponseEntity<List<UserDto>> getAllUsers() {
             return ResponseEntity.ok(userService.getAllUsers());
         }
 
         @GetMapping("/{id}")
-        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER')")
+        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER')")
         @Operation(summary = "Get user by ID", description = "Get user details by ID")
         public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
             return ResponseEntity.ok(userService.getUserById(id));
@@ -70,7 +70,7 @@
         }
 
         @GetMapping("/by-role/{roleName}")
-        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER')")
+        @PreAuthorize("hasAnyRole('ORGANIZATION_ADMIN', 'PRODUCT_OWNER', 'SCRUM_MASTER', 'DEVELOPER')")
         @Operation(summary = "Get users by role", description = "Get all users with a specific role")
         public ResponseEntity<List<UserDto>> getUsersByRole(@PathVariable Role.RoleName roleName) {
             return ResponseEntity.ok(userService.getUsersByRole(roleName));

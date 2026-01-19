@@ -23,13 +23,13 @@ import { AuthService } from '../../services/auth.service';
   `,
   styles: [`
     .container { padding: 2rem; max-width: 600px; margin: 0 auto; }
-    h1 { color: #1a202c; margin-bottom: 2rem; text-align: center; }
-    .profile-card { background: white; padding: 3rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
-    .avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; margin: 0 auto 1.5rem; }
-    h2 { margin: 0 0 0.5rem 0; color: #2d3748; }
-    .email { color: #718096; margin-bottom: 1.5rem; }
+    h1 { color: var(--text-primary); margin-bottom: 2rem; text-align: center; }
+    .profile-card { background: var(--bg-primary); padding: 3rem; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+    .avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%); color: white; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; margin: 0 auto 1.5rem; }
+    h2 { margin: 0 0 0.5rem 0; color: var(--text-primary); }
+    .email { color: var(--text-muted); margin-bottom: 1.5rem; }
     .roles { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
-    .role-badge { padding: 0.5rem 1rem; background: #e6f2ff; color: #2c5282; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+    .role-badge { padding: 0.5rem 1rem; background: var(--info-light); color: var(--info-color); border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
   `]
 })
 export class ProfileComponent {

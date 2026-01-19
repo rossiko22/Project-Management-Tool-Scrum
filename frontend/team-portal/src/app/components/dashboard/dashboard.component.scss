@@ -1,7 +1,7 @@
 .dashboard-container {
   width: 100%;
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--bg-secondary);
   padding: 2rem;
 }
 
@@ -16,15 +16,15 @@
   .spinner {
     width: 50px;
     height: 50px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #667eea;
+    border: 4px solid var(--border-light);
+    border-top: 4px solid var(--primary-color);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
 
   p {
     margin-top: 1rem;
-    color: #666;
+    color: var(--text-muted);
   }
 }
 
@@ -34,8 +34,8 @@
 }
 
 .error-message {
-  background-color: #fee;
-  color: #c33;
+  background-color: var(--danger-light);
+  color: var(--danger-color);
   padding: 1rem;
   border-radius: 8px;
   margin: 1rem 0;
@@ -44,14 +44,14 @@
   .btn-retry {
     margin-top: 1rem;
     padding: 0.5rem 1rem;
-    background-color: #667eea;
+    background-color: var(--primary-color);
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
 
     &:hover {
-      background-color: #5568d3;
+      background-color: var(--primary-dark);
     }
   }
 }
@@ -69,18 +69,18 @@
 
   h1 {
     margin: 0;
-    color: #1a202c;
+    color: var(--text-primary);
     font-size: 2rem;
   }
 
   .subtitle {
-    color: #718096;
+    color: var(--text-muted);
     margin-top: 0.5rem;
   }
 
   .project-selector {
     padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: white;
     font-size: 1rem;
@@ -88,7 +88,7 @@
 
     &:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: var(--primary-color);
     }
   }
 }
@@ -115,13 +115,13 @@
 
     h2, h3 {
       margin: 0;
-      color: #1a202c;
+      color: var(--text-primary);
       font-size: 1.25rem;
       font-weight: 600;
     }
 
     .link-view-all {
-      color: #667eea;
+      color: var(--primary-color);
       text-decoration: none;
       font-weight: 600;
       font-size: 0.875rem;
@@ -130,25 +130,25 @@
       border-radius: 8px;
 
       &:hover {
-        background: rgba(102, 126, 234, 0.1);
+        background: rgba(15, 118, 110, 0.1);
         transform: translateX(2px);
       }
     }
   }
 
   .card-body {
-    color: #4a5568;
+    color: var(--text-secondary);
   }
 }
 
 // Sprint Summary
 .sprint-summary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
 
   &:hover {
-    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.4);
   }
 
   .card-header {
@@ -180,6 +180,7 @@
       h3 {
         margin: 0 0 0.5rem 0;
         font-size: 1.5rem;
+        color: white;
       }
 
       .sprint-goal {
@@ -242,7 +243,7 @@
       display: inline-block;
       padding: 0.75rem 1.5rem;
       background: white;
-      color: #667eea;
+      color: var(--primary-color);
       text-decoration: none;
       border-radius: 8px;
       font-weight: 600;
@@ -287,19 +288,19 @@
       font-size: 1.75rem;
 
       &.todo {
-        background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        background: var(--info-light);
       }
       &.in-progress {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        background: var(--warning-light);
       }
       &.review {
-        background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+        background: var(--primary-subtle);
       }
       &.done {
-        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        background: var(--success-light);
       }
       &.impediments {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        background: var(--danger-light);
       }
     }
 
@@ -308,7 +309,7 @@
 
       h4 {
         margin: 0 0 0.25rem 0;
-        color: #718096;
+        color: var(--text-muted);
         font-size: 0.875rem;
         font-weight: 500;
         text-transform: uppercase;
@@ -317,7 +318,7 @@
 
       .stat-number {
         margin: 0;
-        color: #1a202c;
+        color: var(--text-primary);
         font-size: 2rem;
         font-weight: 700;
         line-height: 1;
@@ -336,7 +337,7 @@
   .empty-state {
     text-align: center;
     padding: 3rem 1rem;
-    color: #a0aec0;
+    color: var(--text-muted);
 
     p {
       margin: 0;
@@ -351,7 +352,7 @@
     display: flex;
     gap: 1rem;
     padding: 1rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-color);
     transition: all 0.2s;
     border-radius: 8px;
 
@@ -360,7 +361,7 @@
     }
 
     &:hover {
-      background-color: #f7fafc;
+      background-color: var(--bg-secondary);
       transform: translateX(4px);
     }
 
@@ -369,10 +370,10 @@
       border-radius: 2px;
       flex-shrink: 0;
 
-      &.to-do { background-color: #cbd5e0; }
-      &.in-progress { background-color: #f6ad55; }
-      &.review { background-color: #9f7aea; }
-      &.done { background-color: #48bb78; }
+      &.to-do { background-color: var(--border-dark); }
+      &.in-progress { background-color: var(--warning-color); }
+      &.review { background-color: var(--status-review); }
+      &.done { background-color: var(--success-color); }
     }
 
     .task-info {
@@ -381,14 +382,14 @@
 
       h4 {
         margin: 0 0 0.5rem 0;
-        color: #2d3748;
+        color: var(--text-primary);
         font-size: 0.95rem;
         font-weight: 600;
       }
 
       .task-desc {
         margin: 0 0 0.5rem 0;
-        color: #718096;
+        color: var(--text-muted);
         font-size: 0.85rem;
         line-height: 1.4;
         overflow: hidden;
@@ -404,23 +405,23 @@
         font-weight: 600;
 
         &.to-do {
-          background: #e2e8f0;
-          color: #4a5568;
+          background: var(--border-color);
+          color: var(--text-secondary);
         }
 
         &.in-progress {
-          background: #feebc8;
-          color: #c05621;
+          background: var(--warning-light);
+          color: var(--warning-color);
         }
 
         &.review {
-          background: #e9d8fd;
-          color: #6b46c1;
+          background: var(--primary-subtle);
+          color: var(--status-review);
         }
 
         &.done {
-          background: #c6f6d5;
-          color: #22543d;
+          background: var(--success-light);
+          color: var(--success-color);
         }
       }
     }
@@ -431,7 +432,7 @@
 .impediment-list {
   .impediment-item {
     padding: 1rem;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-color);
     border-radius: 8px;
     transition: all 0.2s;
 
@@ -440,7 +441,7 @@
     }
 
     &:hover {
-      background-color: #f7fafc;
+      background-color: var(--bg-secondary);
       transform: translateX(4px);
     }
 
@@ -453,7 +454,7 @@
 
       h4 {
         margin: 0;
-        color: #2d3748;
+        color: var(--text-primary);
         font-size: 0.95rem;
         font-weight: 600;
         flex: 1;
@@ -466,26 +467,26 @@
         font-weight: 600;
 
         &.open {
-          background: #fed7d7;
-          color: #c53030;
+          background: var(--danger-light);
+          color: var(--danger-color);
         }
 
         &.in-progress {
-          background: #feebc8;
-          color: #c05621;
+          background: var(--warning-light);
+          color: var(--warning-color);
         }
       }
     }
 
     .impediment-desc {
       margin: 0 0 0.5rem 0;
-      color: #718096;
+      color: var(--text-muted);
       font-size: 0.85rem;
     }
 
     .impediment-date {
       font-size: 0.75rem;
-      color: #a0aec0;
+      color: var(--text-muted);
     }
   }
 }
@@ -494,7 +495,7 @@
 .quick-actions {
   h3 {
     margin: 0 0 1.25rem 0;
-    color: #1a202c;
+    color: var(--text-primary);
     font-size: 1.25rem;
     font-weight: 600;
   }
@@ -511,7 +512,7 @@
       justify-content: center;
       gap: 0.75rem;
       padding: 1.25rem 1rem;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
       color: white;
       text-decoration: none;
       border-radius: 12px;
@@ -532,7 +533,7 @@
 
       &:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 8px 20px rgba(15, 118, 110, 0.4);
       }
 
       &:active {

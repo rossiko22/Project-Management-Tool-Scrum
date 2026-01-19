@@ -208,6 +208,10 @@ export class SprintsComponent implements OnInit {
   }
 
   openRetrospectiveModal(sprint: Sprint): void {
+    if (sprint.status !== 'COMPLETED') {
+      this.error = 'Retrospectives can only be created after a sprint is completed.';
+      return;
+    }
     this.selectedSprint = sprint;
     this.newRetrospective = {
       sprintId: sprint.id,
@@ -342,4 +346,3 @@ export class SprintsComponent implements OnInit {
     return new Date(date).toLocaleDateString();
   }
 }
-

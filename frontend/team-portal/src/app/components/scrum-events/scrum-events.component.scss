@@ -241,10 +241,10 @@
     border-radius: var(--radius-sm);
     text-transform: uppercase;
 
-    &.type-story { background: var(--info-light); color: #1E40AF; }
-    &.type-bug { background: var(--danger-light); color: #991B1B; }
-    &.type-epic { background: #EDE9FE; color: #5B21B6; }
-    &.type-task { background: var(--success-light); color: #065F46; }
+    &.type-story { background: var(--info-light); color: var(--info-color); }
+    &.type-bug { background: var(--danger-light); color: var(--danger-color); }
+    &.type-epic { background: var(--primary-subtle); color: var(--type-epic); }
+    &.type-task { background: var(--success-light); color: var(--success-color); }
   }
 
   .item-title {
@@ -480,20 +480,20 @@
 
   &.went-well {
     background: var(--success-light);
-    h4 { color: #065F46; border-color: var(--success-color); }
-    li { color: #065F46; }
+    h4 { color: var(--success-color); border-color: var(--success-color); }
+    li { color: var(--success-color); }
   }
 
   &.improvements {
     background: var(--warning-light);
-    h4 { color: #92400E; border-color: var(--warning-color); }
-    li { color: #92400E; }
+    h4 { color: var(--warning-color); border-color: var(--warning-color); }
+    li { color: var(--warning-color); }
   }
 
   &.action-items {
     background: var(--info-light);
-    h4 { color: #1E40AF; border-color: var(--info-color); }
-    li { color: #1E40AF; }
+    h4 { color: var(--info-color); border-color: var(--info-color); }
+    li { color: var(--info-color); }
   }
 }
 
@@ -720,12 +720,12 @@ textarea.form-control {
 
   &.badge-success {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
   }
 
   &.badge-warning {
     background: var(--warning-light);
-    color: #92400E;
+    color: var(--warning-color);
   }
 
   &.badge-gray {
@@ -823,43 +823,43 @@ textarea.form-control {
 
 // Add Retro Button (Blue)
 .btn-add-retro {
-  background: #3B82F6;
+  background: var(--primary-color);
   color: white;
-  border-color: #3B82F6;
+  border-color: var(--primary-color);
 
   &:hover:not(:disabled) {
-    background: #2563EB;
-    border-color: #2563EB;
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
   }
 }
 
 // Success and Danger buttons
 .btn-success {
-  background: var(--success-color, #10B981);
+  background: var(--success-color);
   color: white;
-  border-color: var(--success-color, #10B981);
+  border-color: var(--success-color);
 
   &:hover:not(:disabled) {
-    background: #059669;
-    border-color: #059669;
+    background: var(--success-color);
+    border-color: var(--success-color);
   }
 }
 
 .btn-danger {
-  background: var(--danger-color, #EF4444);
+  background: var(--danger-color);
   color: white;
-  border-color: var(--danger-color, #EF4444);
+  border-color: var(--danger-color);
 
   &:hover:not(:disabled) {
-    background: #DC2626;
-    border-color: #DC2626;
+    background: var(--danger-color);
+    border-color: var(--danger-color);
   }
 }
 
 // Status badges
 .badge-info {
-  background: var(--info-light, #DBEAFE);
-  color: #1E40AF;
+  background: var(--info-light);
+  color: var(--info-color);
 }
 
 // Item Status classes
@@ -877,12 +877,12 @@ textarea.form-control {
 
   &.status-progress {
     background: var(--warning-light);
-    color: #92400E;
+    color: var(--warning-color);
   }
 
   &.status-done {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
   }
 }
 
@@ -926,12 +926,12 @@ textarea.form-control {
 
   &.progress {
     background: var(--warning-light);
-    color: #92400E;
+    color: var(--warning-color);
   }
 
   &.done {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
   }
 }
 
@@ -1004,9 +1004,9 @@ textarea.form-control {
     font-size: var(--text-sm);
     font-weight: 500;
 
-    &.accepted { color: #065F46; }
-    &.declined { color: #991B1B; }
-    &.pending { color: #92400E; }
+    &.accepted { color: var(--success-color); }
+    &.declined { color: var(--danger-color); }
+    &.pending { color: var(--warning-color); }
   }
 }
 
@@ -1020,7 +1020,7 @@ textarea.form-control {
 
   &.pending {
     background: var(--warning-light);
-    border: 1px solid #FCD34D;
+    border: 1px solid var(--warning-color);
   }
 }
 
@@ -1048,12 +1048,12 @@ textarea.form-control {
 
   &.success {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
   }
 
   &.danger {
     background: var(--danger-light);
-    color: #991B1B;
+    color: var(--danger-color);
   }
 }
 
@@ -1093,12 +1093,12 @@ textarea.form-control {
 
   &.accepted {
     background: var(--success-light);
-    color: #065F46;
+    color: var(--success-color);
   }
 
   &.declined {
     background: var(--danger-light);
-    color: #991B1B;
+    color: var(--danger-color);
   }
 }
 
@@ -1216,17 +1216,17 @@ textarea.form-control {
 
   &.went-well {
     background: var(--success-light);
-    h4 { color: #065F46; border-color: var(--success-color); }
+    h4 { color: var(--success-color); border-color: var(--success-color); }
   }
 
   &.improvements {
     background: var(--warning-light);
-    h4 { color: #92400E; border-color: var(--warning-color); }
+    h4 { color: var(--warning-color); border-color: var(--warning-color); }
   }
 
   &.action-items {
     background: var(--info-light);
-    h4 { color: #1E40AF; border-color: var(--info-color); }
+    h4 { color: var(--info-color); border-color: var(--info-color); }
   }
 
   &.notes {

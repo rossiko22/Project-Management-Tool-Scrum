@@ -67,7 +67,7 @@ public class RetrospectiveService {
     public RetrospectiveDto getRetrospectiveBySprintId(Long sprintId) {
         return retrospectiveRepository.findBySprintId(sprintId)
                 .map(RetrospectiveDto::fromEntity)
-                .orElseThrow(() -> new RuntimeException("Retrospective not found for sprint " + sprintId));
+                .orElse(null);
     }
 
     public RetrospectiveDto getRetrospective(Long id) {

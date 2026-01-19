@@ -5,7 +5,7 @@ import { Router, RouterModule } from '@angular/router';
 import { ProjectService } from '../../services/project.service';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
-import { Project, CreateProjectRequest } from '../../models/project.model';
+import { Project, CreateProjectRequest, AssignTeamRequest } from '../../models/project.model';
 import { User } from '../../models/user.model';
 import { forkJoin } from 'rxjs';
 
@@ -25,8 +25,13 @@ export class ProjectsComponent implements OnInit {
   developers: User[] = [];
   loading = false;
   showCreateForm = false;
+  showViewModal = false;
+  showEditModal = false;
   createProjectForm: FormGroup;
+  editProjectForm: FormGroup;
   selectedDevelopers: number[] = [];
+  editDevelopers: number[] = [];
+  selectedProject: Project | null = null;
   error = '';
   success = '';
   searchTerm = '';
@@ -44,6 +49,16 @@ export class ProjectsComponent implements OnInit {
       organizationId: [1, Validators.required],
       defaultSprintLength: [2],
       timezone: ['UTC'],
+      productOwnerId: [null],
+      scrumMasterId: [null]
+    });
+
+    this.editProjectForm = this.formBuilder.group({
+      name: ['', Validators.required],
+      description: ['', Validators.required],
+      defaultSprintLength: [2],
+      timezone: ['UTC'],
+      status: ['ACTIVE', Validators.required],
       productOwnerId: [null],
       scrumMasterId: [null]
     });
@@ -101,6 +116,10 @@ export class ProjectsComponent implements OnInit {
 
   toggleCreateForm(): void {
     this.showCreateForm = !this.showCreateForm;
+    if (this.showCreateForm) {
+      this.showEditModal = false;
+      this.showViewModal = false;
+    }
     if (!this.showCreateForm) {
       this.createProjectForm.reset();
       this.createProjectForm.patchValue({
@@ -166,13 +185,107 @@ export class ProjectsComponent implements OnInit {
   }
 
   viewProject(project: Project): void {
-    // Navigate to project details (to be implemented)
-    console.log('View project:', project);
+    this.selectedProject = project;
+    this.showViewModal = true;
+    this.showEditModal = false;
   }
 
   editProject(project: Project): void {
-    // Navigate to edit project (to be implemented)
-    console.log('Edit project:', project);
+    this.selectedProject = project;
+    this.showEditModal = true;
+    this.showViewModal = false;
+    this.showCreateForm = false;
+    this.error = '';
+    this.success = '';
+
+    this.editDevelopers = project.team?.developers?.map(dev => dev.id) ?? [];
+    this.editProjectForm.reset();
+    this.editProjectForm.patchValue({
+      name: project.name,
+      description: project.description,
+      defaultSprintLength: project.defaultSprintLength ?? 2,
+      timezone: project.timezone ?? 'UTC',
+      status: project.status ?? 'ACTIVE',
+      productOwnerId: project.team?.productOwner?.id ?? null,
+      scrumMasterId: project.team?.scrumMaster?.id ?? null
+    });
+  }
+
+  closeViewModal(): void {
+    this.showViewModal = false;
+    this.selectedProject = null;
+  }
+
+  closeEditModal(): void {
+    this.showEditModal = false;
+    this.selectedProject = null;
+    this.editDevelopers = [];
+    this.editProjectForm.reset();
+  }
+
+  toggleEditDeveloper(developerId: number): void {
+    const index = this.editDevelopers.indexOf(developerId);
+    if (index > -1) {
+      this.editDevelopers.splice(index, 1);
+    } else {
+      this.editDevelopers.push(developerId);
+    }
+  }
+
+  isEditDeveloperSelected(developerId: number): boolean {
+    return this.editDevelopers.includes(developerId);
+  }
+
+  updateProject(): void {
+    if (!this.selectedProject || this.editProjectForm.invalid) {
+      return;
+    }
+
+    this.loading = true;
+    this.error = '';
+    this.success = '';
+
+    const formValue = this.editProjectForm.value;
+    const projectUpdates = {
+      name: formValue.name,
+      description: formValue.description,
+      defaultSprintLength: formValue.defaultSprintLength,
+      timezone: formValue.timezone,
+      status: formValue.status
+    };
+
+    const existingDevCount = this.selectedProject.team?.developers?.length ?? 0;
+    const assignRequest: AssignTeamRequest = {};
+    if (formValue.productOwnerId) {
+      assignRequest.productOwnerId = formValue.productOwnerId;
+    }
+    if (formValue.scrumMasterId) {
+      assignRequest.scrumMasterId = formValue.scrumMasterId;
+    }
+    if (this.editDevelopers.length > 0 || existingDevCount > 0) {
+      assignRequest.developerIds = this.editDevelopers;
+    }
+
+    const requests = [this.projectService.updateProject(this.selectedProject.id, projectUpdates)];
+    if (Object.keys(assignRequest).length > 0) {
+      requests.push(this.projectService.assignTeam(this.selectedProject.id, assignRequest));
+    }
+
+    forkJoin(requests).subscribe({
+      next: () => {
+        this.success = `Project "${projectUpdates.name}" updated successfully!`;
+        this.showEditModal = false;
+        this.selectedProject = null;
+        this.editDevelopers = [];
+        this.loadProjects();
+        this.loading = false;
+      },
+      error: (error) => {
+        this.error = error.error?.message || 'Failed to update project';
+        this.loading = false;
+        console.error(error);
+      }
+    });
   }
 
   deleteProject(project: Project): void {
