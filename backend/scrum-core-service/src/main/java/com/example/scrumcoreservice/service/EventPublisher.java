@@ -4,6 +4,7 @@ import com.example.scrumcoreservice.events.BacklogItemEvent;
 import com.example.scrumcoreservice.events.SprintEvent;
 import com.example.scrumcoreservice.events.TaskEvent;
 import com.example.scrumcoreservice.events.ApprovalEvent;
+import com.example.scrumcoreservice.events.ImpedimentEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -23,6 +24,7 @@ public class EventPublisher {
     private static final String SPRINT_TOPIC = "scrum.sprint";
     private static final String TASK_TOPIC = "scrum.task";
     private static final String APPROVAL_TOPIC = "scrum.approval";
+    private static final String IMPEDIMENT_TOPIC = "scrum.impediment";
 
     public void publishBacklogItemEvent(BacklogItemEvent event) {
         CompletableFuture<SendResult<String, Object>> future =
@@ -72,6 +74,19 @@ public class EventPublisher {
                 log.error("Failed to publish approval event: {}", event, ex);
             } else {
                 log.info("Published approval event: {} to topic: {}", event.getAction(), APPROVAL_TOPIC);
+            }
+        });
+    }
+
+    public void publishImpedimentEvent(ImpedimentEvent event) {
+        CompletableFuture<SendResult<String, Object>> future =
+            kafkaTemplate.send(IMPEDIMENT_TOPIC, event.getImpedimentId().toString(), event);
+
+        future.whenComplete((result, ex) -> {
+            if (ex != null) {
+                log.error("Failed to publish impediment event: {}", event, ex);
+            } else {
+                log.info("Published impediment event: {} to topic: {}", event.getAction(), IMPEDIMENT_TOPIC);
             }
         });
     }

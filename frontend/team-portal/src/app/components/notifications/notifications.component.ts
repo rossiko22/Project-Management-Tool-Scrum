@@ -85,6 +85,8 @@ export class NotificationsComponent implements OnInit, OnDestroy {
         return 'Item Approved';
       case 'BACKLOG_ITEM_REJECTED':
         return 'Item Rejected';
+      case 'BACKLOG_ITEM_READY_FOR_SPRINT':
+        return 'Item Ready for Sprint';
       case 'COMMENT_ADDED':
         return 'New Comment';
       case 'TASK_ASSIGNED':
@@ -93,6 +95,20 @@ export class NotificationsComponent implements OnInit, OnDestroy {
         return 'Sprint Started';
       case 'SPRINT_ENDED':
         return 'Sprint Ended';
+      case 'IMPEDIMENT_REPORTED':
+        return 'Impediment Reported';
+      case 'IMPEDIMENT_RESOLVED':
+        return 'Impediment Resolved';
+      case 'ITEM_MOVED_TO_REVIEW':
+        return 'Item Ready for Review';
+      case 'ITEM_RETURNED_TO_BACKLOG':
+        return 'Item Returned to Backlog';
+      case 'MENTION':
+        return 'You Were Mentioned';
+      case 'DAILY_SCRUM_INVITATION':
+        return 'Daily Scrum Invitation';
+      case 'RETROSPECTIVE_ITEM_ADDED':
+        return 'New Retrospective Item';
       default:
         return 'Notification';
     }
@@ -146,6 +162,8 @@ export class NotificationsComponent implements OnInit, OnDestroy {
         return '✅';
       case 'BACKLOG_ITEM_REJECTED':
         return '❌';
+      case 'BACKLOG_ITEM_READY_FOR_SPRINT':
+        return '📦';
       case 'SPRINT_STARTED':
         return '🏁';
       case 'SPRINT_ENDED':
@@ -155,7 +173,17 @@ export class NotificationsComponent implements OnInit, OnDestroy {
       case 'IMPEDIMENT_REPORTED':
         return '🚧';
       case 'IMPEDIMENT_RESOLVED':
-        return '✔️';
+        return '✨';
+      case 'ITEM_MOVED_TO_REVIEW':
+        return '👀';
+      case 'ITEM_RETURNED_TO_BACKLOG':
+        return '↩️';
+      case 'MENTION':
+        return '@';
+      case 'DAILY_SCRUM_INVITATION':
+        return '🗓️';
+      case 'RETROSPECTIVE_ITEM_ADDED':
+        return '💡';
       default:
         return '📢';
     }

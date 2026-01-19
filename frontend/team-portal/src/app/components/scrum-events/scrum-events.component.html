@@ -1,0 +1,688 @@
+<div class="scrum-events-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Scrum Events</h1>
+      <p class="subtitle">Document and manage your Scrum ceremonies</p>
+    </div>
+    <div class="sprint-selector">
+      <label>Sprint:</label>
+      <select
+        class="form-control"
+        [ngModel]="selectedSprint?.id"
+        (ngModelChange)="onSprintChange($event)">
+        <option *ngFor="let sprint of sprints" [value]="sprint.id">
+          {{ sprint.name }}
+          <span *ngIf="sprint.status === 'ACTIVE'"> (Active)</span>
+          <span *ngIf="sprint.status === 'PLANNED'"> (Planned)</span>
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading scrum events...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="alert alert-danger" *ngIf="error">
+    {{ error }}
+  </div>
+
+  <!-- No Sprint Selected -->
+  <div class="empty-state" *ngIf="!selectedSprint && !loading && sprints.length === 0">
+    <div class="empty-icon">📅</div>
+    <h3>No Sprints Found</h3>
+    <p>Create a sprint first to start documenting Scrum events.</p>
+  </div>
+
+  <!-- Main Content -->
+  <div class="events-content" *ngIf="selectedSprint && !loading">
+    <!-- Event Tabs -->
+    <div class="event-tabs">
+      <button
+        class="tab-btn"
+        [class.active]="activeEvent === 'planning'"
+        (click)="setActiveEvent('planning')">
+        <span class="tab-icon">📋</span>
+        Sprint Planning
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeEvent === 'daily'"
+        (click)="setActiveEvent('daily')">
+        <span class="tab-icon">🗣️</span>
+        Daily Scrum
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeEvent === 'review'"
+        (click)="setActiveEvent('review')">
+        <span class="tab-icon">📊</span>
+        Sprint Review
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="activeEvent === 'retrospective'"
+        (click)="setActiveEvent('retrospective')">
+        <span class="tab-icon">🔄</span>
+        Retrospective
+      </button>
+    </div>
+
+    <!-- Sprint Planning Tab -->
+    <div class="tab-content" *ngIf="activeEvent === 'planning'">
+      <div class="event-card">
+        <div class="event-header">
+          <h2>Sprint Planning</h2>
+          <span class="badge" [ngClass]="getSprintStatusClass()">
+            {{ getSprintStatusLabel() }}
+          </span>
+        </div>
+
+        <!-- Info message for planned sprints -->
+        <div class="info-text planning-info" *ngIf="isSprintPlanned">
+          This sprint has not started yet. Use Sprint Planning to review and finalize the backlog items before starting the sprint.
+        </div>
+
+        <div class="planning-overview">
+          <div class="info-section">
+            <h3>Sprint Goal</h3>
+            <p class="sprint-goal">{{ selectedSprint.goal || 'No goal defined' }}</p>
+          </div>
+
+          <div class="planning-stats">
+            <div class="stat-item">
+              <span class="stat-label">Duration</span>
+              <span class="stat-value">{{ formatDateShort(selectedSprint.startDate) }} - {{ formatDateShort(selectedSprint.endDate) }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Team Capacity</span>
+              <span class="stat-value">{{ selectedSprint.teamCapacity || 0 }} hours</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Items Planned</span>
+              <span class="stat-value">{{ sprintBacklog.length }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Story Points</span>
+              <span class="stat-value">{{ plannedPoints }}</span>
+            </div>
+          </div>
+
+          <!-- Sprint Progress (only for active sprints) -->
+          <div class="progress-section" *ngIf="isSprintActive">
+            <h3>Sprint Progress</h3>
+            <div class="progress-bar-container">
+              <div class="progress-bar" [style.width.%]="getSprintProgress()"></div>
+            </div>
+            <span class="progress-label">{{ getSprintProgress() }}% of sprint duration elapsed</span>
+          </div>
+
+          <!-- Items by Status for planned sprints -->
+          <div class="items-by-status" *ngIf="isSprintPlanned && sprintBacklog.length > 0">
+            <h3>Sprint Backlog Items</h3>
+            <div class="status-summary">
+              <div class="status-chip todo">
+                <span class="count">{{ todoItems.length }}</span> To Do
+              </div>
+              <div class="status-chip progress">
+                <span class="count">{{ inProgressItems.length }}</span> In Progress
+              </div>
+              <div class="status-chip done">
+                <span class="count">{{ completedItems.length }}</span> Done
+              </div>
+            </div>
+          </div>
+
+          <!-- Planned Items -->
+          <div class="items-section" *ngIf="sprintBacklog.length > 0">
+            <h3>{{ isSprintPlanned ? 'Items Ready for Sprint' : 'Planned Items' }} ({{ sprintBacklog.length }})</h3>
+            <div class="items-list">
+              <div class="item-row" *ngFor="let item of sprintBacklog">
+                <span class="item-type" [ngClass]="getItemTypeClass(item.type)">{{ item.type }}</span>
+                <span class="item-title">{{ item.title }}</span>
+                <span class="item-points" *ngIf="item.storyPoints">{{ item.storyPoints }} pts</span>
+                <span class="item-status" [ngClass]="getStatusClass(item.status)">{{ item.status }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-planning" *ngIf="sprintBacklog.length === 0">
+            <p>No items have been added to this sprint yet.</p>
+            <p *ngIf="isSprintPlanned" class="help-text">Add items from the backlog to start planning this sprint.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Scrum Tab -->
+    <div class="tab-content" *ngIf="activeEvent === 'daily'">
+      <div class="event-card">
+        <div class="event-header">
+          <h2>Daily Scrum</h2>
+          <button
+            *ngIf="canCreateDailyScrum && selectedSprint"
+            class="btn btn-primary"
+            (click)="openCreateDailyModal()">
+            + Create Daily Scrum Event
+          </button>
+        </div>
+
+        <div class="daily-info">
+          <p class="info-text">
+            The Daily Scrum is a 15-minute event for the Developers to inspect progress toward the Sprint Goal
+            and adapt the Sprint Backlog as necessary. Create events and invite team members.
+          </p>
+        </div>
+
+        <!-- Daily Scrum Events List -->
+        <div class="daily-events-list" *ngIf="dailyScrumEvents.length > 0">
+          <div class="daily-event-card" *ngFor="let event of dailyScrumEvents">
+            <div class="event-info">
+              <div class="event-datetime">
+                <span class="date-icon">📅</span>
+                <span class="datetime-text">{{ formatDateTime(event.date, event.time) }}</span>
+              </div>
+              <div class="event-creator">
+                Created by <strong>{{ event.createdByName }}</strong>
+              </div>
+            </div>
+
+            <div class="event-attendance">
+              <div class="attendance-stats">
+                <span class="stat accepted" title="Accepted">✅ {{ getAcceptedCount(event) }}</span>
+                <span class="stat declined" title="Declined">❌ {{ getDeclinedCount(event) }}</span>
+                <span class="stat pending" title="Pending">⏳ {{ getPendingCount(event) }}</span>
+              </div>
+
+              <!-- RSVP buttons for invited users -->
+              <div class="rsvp-section" *ngIf="isUserInvited(event)">
+                <ng-container [ngSwitch]="getUserResponse(event)">
+                  <div class="your-response pending" *ngSwitchCase="'pending'">
+                    <span class="response-label">Your response:</span>
+                    <div class="rsvp-buttons">
+                      <button class="btn btn-success btn-sm" (click)="respondToEvent(event, 'accepted')">
+                        I Can Attend
+                      </button>
+                      <button class="btn btn-danger btn-sm" (click)="respondToEvent(event, 'declined')">
+                        I Cannot Attend
+                      </button>
+                    </div>
+                  </div>
+                  <div class="your-response accepted" *ngSwitchCase="'accepted'">
+                    <span class="response-badge success">✅ You accepted this invitation</span>
+                  </div>
+                  <div class="your-response declined" *ngSwitchCase="'declined'">
+                    <span class="response-badge danger">❌ You declined this invitation</span>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+
+            <!-- Invitees list -->
+            <div class="invitees-list">
+              <span class="invitees-label">Invitees:</span>
+              <div class="invitee-chips">
+                <span
+                  class="invitee-chip"
+                  *ngFor="let invitee of event.invitees"
+                  [ngClass]="{
+                    'accepted': invitee.response === 'accepted',
+                    'declined': invitee.response === 'declined',
+                    'pending': invitee.response === 'pending'
+                  }">
+                  {{ invitee.userName }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-daily" *ngIf="dailyScrumEvents.length === 0">
+          <p>No Daily Scrum events created for this sprint yet.</p>
+          <button
+            *ngIf="canCreateDailyScrum"
+            class="btn btn-secondary"
+            (click)="openCreateDailyModal()">
+            Create Your First Daily Scrum Event
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sprint Review Tab -->
+    <div class="tab-content" *ngIf="activeEvent === 'review'">
+      <div class="event-card">
+        <div class="event-header">
+          <h2>Sprint Review</h2>
+          <span class="badge" [ngClass]="isSprintCompleted ? 'badge-success' : 'badge-warning'">
+            {{ isSprintCompleted ? 'Completed' : 'In Progress' }}
+          </span>
+        </div>
+
+        <div class="review-info">
+          <p class="info-text">
+            The Sprint Review is held at the end of the Sprint to inspect the Increment and adapt the Product Backlog if needed.
+            Only completed (Done) items are shown here.
+          </p>
+        </div>
+
+        <!-- Review Stats -->
+        <div class="review-stats">
+          <div class="stat-card">
+            <span class="stat-value">{{ completedItems.length }}</span>
+            <span class="stat-label">Items Completed</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ completedPoints }}</span>
+            <span class="stat-label">Points Delivered</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ selectedSprint.velocity || completedPoints }}</span>
+            <span class="stat-label">Velocity</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ sprintBacklog.length - completedItems.length }}</span>
+            <span class="stat-label">Items Remaining</span>
+          </div>
+        </div>
+
+        <!-- Completed Items Only -->
+        <div class="completed-section" *ngIf="completedItems.length > 0">
+          <h3>Completed Work (Done)</h3>
+          <div class="completed-list">
+            <div class="completed-item" *ngFor="let item of completedItems">
+              <span class="item-type" [ngClass]="getItemTypeClass(item.type)">{{ item.type }}</span>
+              <span class="item-title">{{ item.title }}</span>
+              <span class="item-points" *ngIf="item.storyPoints">{{ item.storyPoints }} pts</span>
+              <span class="item-status done">Done</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-review" *ngIf="completedItems.length === 0">
+          <p>No items have been completed yet in this sprint.</p>
+          <p class="help-text" *ngIf="isSprintActive">Complete items by moving them to "Done" status on the board.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retrospective Tab -->
+    <div class="tab-content" *ngIf="activeEvent === 'retrospective'">
+      <div class="event-card">
+        <div class="event-header">
+          <h2>Sprint Retrospective</h2>
+          <div class="header-actions">
+            <button
+              *ngIf="canAddRetroItem"
+              class="btn btn-add-retro"
+              (click)="openAddRetroItemModal()">
+              + Add Retrospective Item
+            </button>
+            <button
+              *ngIf="!retrospective && isScrumMaster"
+              class="btn btn-primary"
+              (click)="openRetrospectiveModal()">
+              + Create Retrospective
+            </button>
+            <button
+              *ngIf="retrospective && isScrumMaster"
+              class="btn btn-secondary"
+              (click)="editRetrospective()">
+              Edit
+            </button>
+          </div>
+        </div>
+
+        <div class="retro-info">
+          <p class="info-text">
+            The Sprint Retrospective is an opportunity for the Scrum Team to inspect itself and create a plan for improvements.
+            <span *ngIf="canAddRetroItem && !isScrumMaster">Use the "Add Retrospective Item" button to contribute your feedback.</span>
+          </p>
+        </div>
+
+        <!-- Team Contributions Section -->
+        <div class="team-contributions" *ngIf="retroContributions.length > 0">
+          <h3>Team Contributions</h3>
+          <div class="contributions-grid">
+            <!-- Went Well Contributions -->
+            <div class="contribution-column went-well" *ngIf="getContributionsByCategory('went_well').length > 0">
+              <h4>What Went Well</h4>
+              <div class="contribution-item" *ngFor="let contrib of getContributionsByCategory('went_well')">
+                <span class="contributor">{{ contrib.contributorName }}</span>
+                <p class="content">{{ contrib.content }}</p>
+              </div>
+            </div>
+
+            <!-- Improvements Contributions -->
+            <div class="contribution-column improvements" *ngIf="getContributionsByCategory('improvements').length > 0">
+              <h4>Improvements Needed</h4>
+              <div class="contribution-item" *ngFor="let contrib of getContributionsByCategory('improvements')">
+                <span class="contributor">{{ contrib.contributorName }}</span>
+                <p class="content">{{ contrib.content }}</p>
+              </div>
+            </div>
+
+            <!-- Action Items Contributions -->
+            <div class="contribution-column action-items" *ngIf="getContributionsByCategory('action_items').length > 0">
+              <h4>Action Items</h4>
+              <div class="contribution-item" *ngFor="let contrib of getContributionsByCategory('action_items')">
+                <span class="contributor">{{ contrib.contributorName }}</span>
+                <p class="content">{{ contrib.content }}</p>
+              </div>
+            </div>
+
+            <!-- Notes Contributions -->
+            <div class="contribution-column notes" *ngIf="getContributionsByCategory('notes').length > 0">
+              <h4>Overall Notes</h4>
+              <div class="contribution-item" *ngFor="let contrib of getContributionsByCategory('notes')">
+                <span class="contributor">{{ contrib.contributorName }}</span>
+                <p class="content">{{ contrib.content }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Official Retrospective Content (by Scrum Master) -->
+        <div class="retrospective-content" *ngIf="retrospective">
+          <h3 class="official-retro-header">Official Retrospective Summary</h3>
+
+          <!-- Team Mood -->
+          <div class="mood-section">
+            <span class="mood-emoji">{{ getMoodEmoji(retrospective.teamMood || 3) }}</span>
+            <span class="mood-label">Team Mood: {{ getMoodLabel(retrospective.teamMood || 3) }}</span>
+          </div>
+
+          <div class="retro-columns">
+            <!-- What Went Well -->
+            <div class="retro-column went-well">
+              <h4>What Went Well</h4>
+              <ul>
+                <li *ngFor="let item of retrospective.wentWell">{{ item }}</li>
+              </ul>
+            </div>
+
+            <!-- Improvements -->
+            <div class="retro-column improvements">
+              <h4>Improvements Needed</h4>
+              <ul>
+                <li *ngFor="let item of retrospective.improvements">{{ item }}</li>
+              </ul>
+            </div>
+
+            <!-- Action Items -->
+            <div class="retro-column action-items">
+              <h4>Action Items</h4>
+              <ul>
+                <li *ngFor="let item of retrospective.actionItems">{{ item }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Overall Notes -->
+          <div class="overall-notes" *ngIf="retrospective.overallNotes">
+            <h4>Overall Notes</h4>
+            <p>{{ retrospective.overallNotes }}</p>
+          </div>
+        </div>
+
+        <div class="empty-retro" *ngIf="!retrospective && retroContributions.length === 0">
+          <p>No retrospective has been documented for this sprint yet.</p>
+          <div class="empty-retro-actions">
+            <button
+              *ngIf="canAddRetroItem"
+              class="btn btn-add-retro"
+              (click)="openAddRetroItemModal()">
+              Add Your Feedback
+            </button>
+            <button
+              *ngIf="isScrumMaster"
+              class="btn btn-secondary"
+              (click)="openRetrospectiveModal()">
+              Create Retrospective
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Daily Scrum Event Modal -->
+<div class="modal-overlay" *ngIf="showCreateDailyModal" (click)="closeCreateDailyModal()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Create Daily Scrum Event</h3>
+      <button class="btn-close" (click)="closeCreateDailyModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group half">
+          <label class="form-label">Date *</label>
+          <input
+            type="date"
+            class="form-control"
+            [(ngModel)]="newDailyEvent.date"
+            [min]="todayDate">
+        </div>
+        <div class="form-group half">
+          <label class="form-label">Time *</label>
+          <input
+            type="time"
+            class="form-control"
+            [(ngModel)]="newDailyEvent.time">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Select Team Members to Invite *</label>
+        <div class="select-actions">
+          <button type="button" class="btn btn-sm btn-secondary" (click)="selectAllInvitees()">Select All</button>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="clearAllInvitees()">Clear All</button>
+        </div>
+        <div class="team-members-grid">
+          <div
+            class="member-checkbox"
+            *ngFor="let member of teamMembers"
+            [class.disabled]="member.id === currentUserId">
+            <label class="checkbox-label" *ngIf="member.id !== currentUserId">
+              <input
+                type="checkbox"
+                [checked]="isInviteeSelected(member.id)"
+                (change)="toggleInvitee(member.id)">
+              <span class="member-name">{{ member.firstName }} {{ member.lastName }}</span>
+              <span class="member-role" *ngIf="member.roles && member.roles.length > 0">
+                ({{ member.roles[0] }})
+              </span>
+            </label>
+            <span class="you-label" *ngIf="member.id === currentUserId">
+              {{ member.firstName }} {{ member.lastName }} (You - Organizer)
+            </span>
+          </div>
+        </div>
+        <div class="selected-count">
+          {{ newDailyEvent.selectedInvitees.length }} team member(s) selected
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeCreateDailyModal()">Cancel</button>
+      <button
+        class="btn btn-primary"
+        (click)="createDailyScrumEvent()"
+        [disabled]="!newDailyEvent.date || !newDailyEvent.time || newDailyEvent.selectedInvitees.length === 0">
+        Create Event & Send Invitations
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Retrospective Item Modal -->
+<div class="modal-overlay" *ngIf="showAddRetroItemModal" (click)="closeAddRetroItemModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Add Retrospective Item</h3>
+      <button class="btn-close" (click)="closeAddRetroItemModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-info">
+        <p>Share your feedback about the sprint. Your contribution will help improve future sprints.</p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category *</label>
+        <select class="form-control" [(ngModel)]="newRetroItem.category">
+          <option value="went_well">What Went Well</option>
+          <option value="improvements">Improvements Needed</option>
+          <option value="action_items">Action Items</option>
+          <option value="notes">Overall Notes</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Your Feedback *</label>
+        <textarea
+          class="form-control"
+          [(ngModel)]="newRetroItem.content"
+          placeholder="Enter your feedback..."
+          rows="4"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeAddRetroItemModal()">Cancel</button>
+      <button
+        class="btn btn-add-retro"
+        (click)="addRetroContribution()"
+        [disabled]="!newRetroItem.content.trim()">
+        Add Feedback
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Retrospective Modal (Scrum Master) -->
+<div class="modal-overlay" *ngIf="showRetrospectiveModal" (click)="closeRetrospectiveModal()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ isEditingRetrospective ? 'Edit' : 'Create' }} Retrospective</h3>
+      <button class="btn-close" (click)="closeRetrospectiveModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Team Mood -->
+      <div class="form-group">
+        <label class="form-label">Team Mood</label>
+        <div class="mood-selector">
+          <button
+            *ngFor="let mood of [1, 2, 3, 4, 5]"
+            type="button"
+            class="mood-btn"
+            [class.active]="newRetrospective.teamMood === mood"
+            (click)="newRetrospective.teamMood = mood">
+            {{ getMoodEmoji(mood) }}
+          </button>
+        </div>
+        <span class="form-help">{{ getMoodLabel(newRetrospective.teamMood || 3) }}</span>
+      </div>
+
+      <!-- What Went Well -->
+      <div class="form-group">
+        <label class="form-label">What Went Well *</label>
+        <div class="dynamic-list">
+          <div class="list-item" *ngFor="let item of newRetrospective.wentWell; let i = index; trackBy: trackByIndex">
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="newRetrospective.wentWell[i]"
+              placeholder="Something that worked well...">
+            <button
+              type="button"
+              class="btn-remove"
+              (click)="removeItem(newRetrospective.wentWell, i)"
+              *ngIf="newRetrospective.wentWell.length > 1">
+              &times;
+            </button>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.wentWell)">
+            + Add Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Improvements -->
+      <div class="form-group">
+        <label class="form-label">Improvements Needed *</label>
+        <div class="dynamic-list">
+          <div class="list-item" *ngFor="let item of newRetrospective.improvements; let i = index; trackBy: trackByIndex">
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="newRetrospective.improvements[i]"
+              placeholder="Something we can improve...">
+            <button
+              type="button"
+              class="btn-remove"
+              (click)="removeItem(newRetrospective.improvements, i)"
+              *ngIf="newRetrospective.improvements.length > 1">
+              &times;
+            </button>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.improvements)">
+            + Add Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Items -->
+      <div class="form-group">
+        <label class="form-label">Action Items *</label>
+        <div class="dynamic-list">
+          <div class="list-item" *ngFor="let item of newRetrospective.actionItems; let i = index; trackBy: trackByIndex">
+            <input
+              type="text"
+              class="form-control"
+              [(ngModel)]="newRetrospective.actionItems[i]"
+              placeholder="Specific action to take...">
+            <button
+              type="button"
+              class="btn-remove"
+              (click)="removeItem(newRetrospective.actionItems, i)"
+              *ngIf="newRetrospective.actionItems.length > 1">
+              &times;
+            </button>
+          </div>
+          <button type="button" class="btn btn-sm btn-secondary" (click)="addItem(newRetrospective.actionItems)">
+            + Add Item
+          </button>
+        </div>
+      </div>
+
+      <!-- Overall Notes -->
+      <div class="form-group">
+        <label class="form-label">Overall Notes</label>
+        <textarea
+          class="form-control"
+          [(ngModel)]="newRetrospective.overallNotes"
+          placeholder="Any additional notes or observations..."
+          rows="3"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeRetrospectiveModal()">Cancel</button>
+      <button
+        class="btn btn-primary"
+        (click)="saveRetrospective()"
+        [disabled]="loading">
+        {{ loading ? 'Saving...' : (isEditingRetrospective ? 'Update' : 'Create') + ' Retrospective' }}
+      </button>
+    </div>
+  </div>
+</div>

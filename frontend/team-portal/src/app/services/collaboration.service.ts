@@ -107,4 +107,13 @@ export class CollaborationService {
     // Backend uses JWT auth, userId is extracted from token
     return this.http.patch<{ message: string }>(`${this.baseUrl}/notifications/mark-all-read`, {});
   }
+
+  // Create notification for a specific user
+  createNotification(recipientId: number, type: string, payload: any): Observable<Notification> {
+    return this.http.post<Notification>(`${this.baseUrl}/notifications`, {
+      recipientId,
+      type,
+      payload
+    });
+  }
 }

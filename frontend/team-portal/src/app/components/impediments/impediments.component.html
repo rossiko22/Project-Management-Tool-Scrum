@@ -1,0 +1,314 @@
+<div class="impediments-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-content">
+      <h1>Impediments</h1>
+      <p class="subtitle">Track and manage blockers affecting your sprint</p>
+    </div>
+    <div class="header-actions">
+      <button
+        *ngIf="canCreateImpediment && selectedSprint"
+        class="btn btn-primary"
+        (click)="openCreateModal()">
+        + Report Impediment
+      </button>
+    </div>
+  </div>
+
+  <!-- Sprint Selector and Stats -->
+  <div class="controls-section">
+    <div class="sprint-selector">
+      <label>Sprint:</label>
+      <select
+        class="form-control"
+        [ngModel]="selectedSprint?.id"
+        (ngModelChange)="onSprintChange($event)">
+        <option *ngFor="let sprint of sprints" [value]="sprint.id">
+          {{ sprint.name }}
+          <span *ngIf="sprint.status === 'ACTIVE'"> (Active)</span>
+        </option>
+      </select>
+    </div>
+
+    <div class="stats-cards" *ngIf="selectedSprint">
+      <div class="stat-card open">
+        <span class="stat-value">{{ getOpenCount() }}</span>
+        <span class="stat-label">Open</span>
+      </div>
+      <div class="stat-card in-progress">
+        <span class="stat-value">{{ getInProgressCount() }}</span>
+        <span class="stat-label">In Progress</span>
+      </div>
+      <div class="stat-card resolved">
+        <span class="stat-value">{{ getResolvedCount() }}</span>
+        <span class="stat-label">Resolved</span>
+      </div>
+    </div>
+
+    <div class="filter-section">
+      <label>Filter:</label>
+      <select class="form-control" [(ngModel)]="statusFilter" (ngModelChange)="onFilterChange()">
+        <option value="ALL">All Status</option>
+        <option value="OPEN">Open</option>
+        <option value="IN_PROGRESS">In Progress</option>
+        <option value="RESOLVED">Resolved</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>Loading impediments...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="alert alert-danger" *ngIf="error">
+    {{ error }}
+  </div>
+
+  <!-- No Sprint Selected -->
+  <div class="empty-state" *ngIf="!selectedSprint && !loading && sprints.length === 0">
+    <div class="empty-icon">📋</div>
+    <h3>No Sprints Found</h3>
+    <p>Create a sprint first to start tracking impediments.</p>
+  </div>
+
+  <!-- Impediments List -->
+  <div class="impediments-list" *ngIf="selectedSprint && !loading">
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="filteredImpediments.length === 0">
+      <div class="empty-icon">✨</div>
+      <h3>No Impediments</h3>
+      <p *ngIf="statusFilter === 'ALL'">Great! Your sprint is running smoothly with no blockers.</p>
+      <p *ngIf="statusFilter !== 'ALL'">No {{ statusFilter.toLowerCase().replace('_', ' ') }} impediments found.</p>
+      <button
+        *ngIf="canCreateImpediment && statusFilter === 'ALL'"
+        class="btn btn-secondary"
+        (click)="openCreateModal()">
+        Report an Impediment
+      </button>
+    </div>
+
+    <!-- Impediment Cards -->
+    <div class="impediment-card" *ngFor="let impediment of filteredImpediments" (click)="openDetailModal(impediment)">
+      <div class="card-header">
+        <span class="status-badge" [ngClass]="getStatusClass(impediment.status)">
+          {{ impediment.status.replace('_', ' ') }}
+        </span>
+        <span class="date">{{ formatDateShort(impediment.reportedAt) }}</span>
+      </div>
+
+      <h3 class="card-title">{{ impediment.title }}</h3>
+
+      <p class="card-description" *ngIf="impediment.description">
+        {{ impediment.description.length > 120 ? impediment.description.substring(0, 120) + '...' : impediment.description }}
+      </p>
+
+      <div class="card-footer">
+        <div class="reporter">
+          <span class="label">Reported by:</span>
+          <span class="value">{{ getUserName(impediment.reportedBy) }}</span>
+        </div>
+        <div class="assignee" *ngIf="impediment.assignedTo">
+          <span class="label">Assigned to:</span>
+          <span class="value">{{ getUserName(impediment.assignedTo) }}</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions (Scrum Master only) -->
+      <div class="quick-actions" *ngIf="isScrumMaster && impediment.status !== 'RESOLVED'" (click)="$event.stopPropagation()">
+        <button
+          *ngIf="impediment.status === 'OPEN'"
+          class="btn btn-sm btn-secondary"
+          (click)="updateStatus(impediment, 'IN_PROGRESS')">
+          Start Working
+        </button>
+        <button
+          *ngIf="impediment.status === 'IN_PROGRESS'"
+          class="btn btn-sm btn-success"
+          (click)="openResolveModal(impediment)">
+          Resolve
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Impediment Modal -->
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Report Impediment</h3>
+      <button class="btn-close" (click)="closeCreateModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input
+          type="text"
+          class="form-control"
+          [(ngModel)]="newImpediment.title"
+          placeholder="Brief description of the blocker"
+          maxlength="500">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea
+          class="form-control"
+          [(ngModel)]="newImpediment.description"
+          placeholder="Detailed description of the impediment, its impact, and any relevant context..."
+          rows="4"></textarea>
+      </div>
+
+      <div class="form-info">
+        <p>Reporting for: <strong>{{ selectedSprint?.name }}</strong></p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeCreateModal()">Cancel</button>
+      <button
+        class="btn btn-primary"
+        (click)="createImpediment()"
+        [disabled]="!newImpediment.title.trim() || loading">
+        {{ loading ? 'Reporting...' : 'Report Impediment' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Impediment Detail Modal -->
+<div class="modal-overlay" *ngIf="showDetailModal && selectedImpediment" (click)="closeDetailModal()">
+  <div class="modal modal-lg" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-section">
+        <span class="status-badge" [ngClass]="getStatusClass(selectedImpediment.status)">
+          {{ selectedImpediment.status.replace('_', ' ') }}
+        </span>
+        <h3>Impediment Details</h3>
+      </div>
+      <button class="btn-close" (click)="closeDetailModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <h2 class="detail-title">{{ selectedImpediment.title }}</h2>
+
+      <div class="detail-description" *ngIf="selectedImpediment.description">
+        <h4>Description</h4>
+        <p>{{ selectedImpediment.description }}</p>
+      </div>
+
+      <div class="detail-meta">
+        <div class="meta-item">
+          <span class="meta-label">Reported by</span>
+          <span class="meta-value">{{ getUserName(selectedImpediment.reportedBy) }}</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Reported on</span>
+          <span class="meta-value">{{ formatDate(selectedImpediment.reportedAt) }}</span>
+        </div>
+        <div class="meta-item" *ngIf="selectedImpediment.resolvedAt">
+          <span class="meta-label">Resolved on</span>
+          <span class="meta-value">{{ formatDate(selectedImpediment.resolvedAt) }}</span>
+        </div>
+        <div class="meta-item" *ngIf="selectedImpediment.resolvedBy">
+          <span class="meta-label">Resolved by</span>
+          <span class="meta-value">{{ getUserName(selectedImpediment.resolvedBy) }}</span>
+        </div>
+      </div>
+
+      <!-- Assignment (Scrum Master only) -->
+      <div class="assignment-section" *ngIf="isScrumMaster && selectedImpediment.status !== 'RESOLVED'">
+        <h4>Assignment</h4>
+        <div class="form-group">
+          <label class="form-label">Assign to</label>
+          <select class="form-control" [(ngModel)]="assigneeId" (ngModelChange)="onAssigneeChange()">
+            <option [ngValue]="null">-- Unassigned --</option>
+            <option *ngFor="let member of teamMembers" [ngValue]="member.id">
+              {{ member.firstName }} {{ member.lastName }} ({{ member.email }})
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Resolution (if resolved) -->
+      <div class="resolution-section" *ngIf="selectedImpediment.resolution">
+        <h4>Resolution</h4>
+        <p class="resolution-text">{{ selectedImpediment.resolution }}</p>
+      </div>
+
+      <!-- Status Actions (Scrum Master only) -->
+      <div class="status-actions" *ngIf="isScrumMaster && selectedImpediment.status !== 'RESOLVED'">
+        <h4>Update Status</h4>
+        <div class="action-buttons">
+          <button
+            *ngIf="selectedImpediment.status === 'OPEN'"
+            class="btn btn-secondary"
+            (click)="updateStatus(selectedImpediment, 'IN_PROGRESS')">
+            Mark as In Progress
+          </button>
+          <button
+            *ngIf="selectedImpediment.status === 'IN_PROGRESS'"
+            class="btn btn-secondary"
+            (click)="updateStatus(selectedImpediment, 'OPEN')">
+            Reopen
+          </button>
+          <button
+            class="btn btn-success"
+            (click)="openResolveModal(selectedImpediment)">
+            Resolve Impediment
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button
+        *ngIf="isScrumMaster"
+        class="btn btn-danger"
+        (click)="deleteImpediment(selectedImpediment)">
+        Delete
+      </button>
+      <button class="btn btn-secondary" (click)="closeDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Resolve Modal -->
+<div class="modal-overlay" *ngIf="showResolveModal && selectedImpediment" (click)="closeResolveModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Resolve Impediment</h3>
+      <button class="btn-close" (click)="closeResolveModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="resolve-info">
+        <p><strong>{{ selectedImpediment.title }}</strong></p>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Resolution Notes *</label>
+        <textarea
+          class="form-control"
+          [(ngModel)]="resolutionNotes"
+          placeholder="Describe how this impediment was resolved..."
+          rows="4"></textarea>
+        <p class="form-help">Provide details about the solution or workaround that was implemented.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" (click)="closeResolveModal()">Cancel</button>
+      <button
+        class="btn btn-success"
+        (click)="resolveImpediment()"
+        [disabled]="!resolutionNotes.trim() || loading">
+        {{ loading ? 'Resolving...' : 'Mark as Resolved' }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -3,12 +3,14 @@ package com.example.scrumcoreservice.service;
 import com.example.scrumcoreservice.dto.ImpedimentDto;
 import com.example.scrumcoreservice.entity.Impediment;
 import com.example.scrumcoreservice.entity.Sprint;
+import com.example.scrumcoreservice.events.ImpedimentEvent;
 import com.example.scrumcoreservice.repository.ImpedimentRepository;
 import com.example.scrumcoreservice.repository.SprintRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -19,6 +21,7 @@ public class ImpedimentService {
 
     private final ImpedimentRepository impedimentRepository;
     private final SprintRepository sprintRepository;
+    private final EventPublisher eventPublisher;
 
     @Transactional
     public ImpedimentDto createImpediment(Long sprintId, String title, String description, Long reportedBy) {
@@ -34,6 +37,21 @@ public class ImpedimentService {
                 .build();
 
         impediment = impedimentRepository.save(impediment);
+
+        // Publish event for notifications
+        eventPublisher.publishImpedimentEvent(ImpedimentEvent.builder()
+                .impedimentId(impediment.getId())
+                .sprintId(sprintId)
+                .projectId(sprint.getProjectId())
+                .title(title)
+                .description(description)
+                .status("OPEN")
+                .reportedBy(reportedBy)
+                .action("CREATED")
+                .timestamp(Instant.now())
+                .performedBy(reportedBy)
+                .build());
+
         return ImpedimentDto.fromEntity(impediment);
     }
 
@@ -91,6 +109,22 @@ public class ImpedimentService {
         impediment.setResolution(resolution);
 
         impediment = impedimentRepository.save(impediment);
+
+        // Publish event for notifications
+        eventPublisher.publishImpedimentEvent(ImpedimentEvent.builder()
+                .impedimentId(impediment.getId())
+                .sprintId(impediment.getSprint().getId())
+                .projectId(impediment.getSprint().getProjectId())
+                .title(impediment.getTitle())
+                .status("RESOLVED")
+                .reportedBy(impediment.getReportedBy())
+                .resolvedBy(resolvedBy)
+                .resolution(resolution)
+                .action("RESOLVED")
+                .timestamp(Instant.now())
+                .performedBy(resolvedBy)
+                .build());
+
         return ImpedimentDto.fromEntity(impediment);
     }
 

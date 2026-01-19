@@ -86,9 +86,11 @@ export class ApiTrackingComponent implements OnInit {
   }
 
   formatDate(dateString: string): string {
-    return new Date(dateString).toLocaleString();
+    const d = new Date(dateString);
+    d.setHours(d.getHours() + 1); // add 1 hour
+    return d.toLocaleString();
   }
-
+  
   getTotalCalls(): number {
     return this.endpointCounts.reduce((sum, count) => sum + count.total_calls, 0);
   }

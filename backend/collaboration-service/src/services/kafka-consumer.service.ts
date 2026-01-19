@@ -35,6 +35,7 @@ export class KafkaConsumerService implements OnModuleInit {
       'scrum.task',
       'scrum.sprint',
       'scrum.backlog-item',
+      'scrum.impediment',
       'identity.user',
       'identity.team',
       'identity.project',
@@ -80,6 +81,12 @@ export class KafkaConsumerService implements OnModuleInit {
           await this.handleSprintStarted(event);
         } else if (event.action === 'COMPLETED') {
           await this.handleSprintCompleted(event);
+        }
+      } else if (topic === 'scrum.impediment') {
+        if (event.action === 'CREATED') {
+          await this.handleImpedimentCreated(event);
+        } else if (event.action === 'RESOLVED') {
+          await this.handleImpedimentResolved(event);
         }
       }
     } catch (error) {
@@ -143,6 +150,73 @@ export class KafkaConsumerService implements OnModuleInit {
         completedPoints: event.completedPoints,
         velocity: event.velocity,
         storiesCompleted: event.storiesCompleted,
+      });
+    }
+  }
+
+  private async handleImpedimentCreated(event: any) {
+    // Notify all team members about the new impediment
+    // For now, we'll create a notification for the Scrum Master (if we had their ID)
+    // In a real scenario, you'd query the identity service for team members
+    if (event.projectId) {
+      this.eventsGateway.emitToProject(event.projectId, 'impediment.created', {
+        impedimentId: event.impedimentId,
+        title: event.title,
+        description: event.description,
+        reportedBy: event.reportedBy,
+        sprintId: event.sprintId,
+      });
+    }
+
+    // If there's a specific assignee, notify them
+    if (event.assignedTo) {
+      await this.notificationService.createNotification(
+        event.assignedTo,
+        NotificationType.IMPEDIMENT_REPORTED,
+        {
+          impedimentId: event.impedimentId,
+          title: event.title,
+          description: event.description,
+          reportedBy: event.reportedBy,
+          message: `New impediment reported: ${event.title}`,
+        },
+      );
+
+      this.eventsGateway.emitToUser(event.assignedTo, 'notification', {
+        type: 'IMPEDIMENT_REPORTED',
+        message: `New impediment reported: ${event.title}`,
+      });
+    }
+  }
+
+  private async handleImpedimentResolved(event: any) {
+    // Notify the reporter that their impediment was resolved
+    if (event.reportedBy) {
+      await this.notificationService.createNotification(
+        event.reportedBy,
+        NotificationType.IMPEDIMENT_RESOLVED,
+        {
+          impedimentId: event.impedimentId,
+          title: event.title,
+          resolution: event.resolution,
+          resolvedBy: event.resolvedBy,
+          message: `Impediment resolved: ${event.title}`,
+        },
+      );
+
+      this.eventsGateway.emitToUser(event.reportedBy, 'notification', {
+        type: 'IMPEDIMENT_RESOLVED',
+        message: `Your impediment has been resolved: ${event.title}`,
+      });
+    }
+
+    // Emit to project room
+    if (event.projectId) {
+      this.eventsGateway.emitToProject(event.projectId, 'impediment.resolved', {
+        impedimentId: event.impedimentId,
+        title: event.title,
+        resolution: event.resolution,
+        resolvedBy: event.resolvedBy,
       });
     }
   }
