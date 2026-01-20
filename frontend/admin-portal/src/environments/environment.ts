@@ -1,5 +1,5 @@
 export const environment = {
-  production: true,
+  production: false,
   apiUrl: '/api/identity',
   scrumApiUrl: '/api/scrum',
   collaborationApiUrl: '/api/collaboration',

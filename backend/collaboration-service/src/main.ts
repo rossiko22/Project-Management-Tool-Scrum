@@ -20,6 +20,8 @@ async function bootstrap() {
     transform: true,
   }));
 
+  app.setGlobalPrefix('api');
+
   // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Collaboration Service API')

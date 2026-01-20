@@ -1,5 +1,7 @@
 services:
+  # ===========================================
   # PostgreSQL Databases
+  # ===========================================
   identity-db:
     image: postgres:15-alpine
     container_name: identity-db
@@ -95,13 +97,15 @@ services:
       timeout: 5s
       retries: 5
 
-  # RabbitMQ Message Broker
+  # ===========================================
+  # Message Brokers
+  # ===========================================
   rabbitmq:
     image: rabbitmq:3.12-management-alpine
     container_name: rabbitmq
     ports:
-      - "5672:5672"   # AMQP protocol port
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin
@@ -115,7 +119,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Kafka Infrastructure
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper
@@ -156,6 +159,213 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+
+  # ===========================================
+  # Backend Microservices
+  # ===========================================
+  identity-service:
+    build:
+      context: ./backend/identity-service
+      dockerfile: Dockerfile
+    container_name: identity-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://identity-db:5432/identity_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: scrum-platform-super-secret-key-that-is-at-least-256-bits-long-for-hs256
+      JWT_EXPIRATION: 86400000
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: admin
+      SPRING_RABBITMQ_PASSWORD: admin
+      SERVER_PORT: 8080
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  scrum-core-service:
+    build:
+      context: ./backend/scrum-core-service
+      dockerfile: Dockerfile
+    container_name: scrum-core-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://scrum-core-db:5432/scrum_core_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: scrum-platform-super-secret-key-that-is-at-least-256-bits-long-for-hs256
+      IDENTITY_SERVICE_URL: http://identity-service:8080
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: admin
+      RABBITMQ_PASSWORD: admin
+      SERVER_PORT: 8081
+    depends_on:
+      scrum-core-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      identity-service:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  collaboration-service:
+    build:
+      context: ./backend/collaboration-service
+      dockerfile: Dockerfile
+    container_name: collaboration-service
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: collaboration-db
+      DB_PORT: 5432
+      DB_NAME: collaboration_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BROKER: kafka:9092
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: scrum-platform-super-secret-key-that-is-at-least-256-bits-long-for-hs256
+    depends_on:
+      collaboration-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  reporting-service:
+    build:
+      context: ./backend/reporting-service
+      dockerfile: Dockerfile
+    container_name: reporting-service
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: reporting-db
+      DB_PORT: 5432
+      DB_NAME: reporting_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BROKER: kafka:9092
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      JWT_SECRET: scrum-platform-super-secret-key-that-is-at-least-256-bits-long-for-hs256
+    depends_on:
+      reporting-db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  logging-service:
+    build:
+      context: ./backend/logging-service
+      dockerfile: Dockerfile
+    container_name: logging-service
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DB_HOST: logging-db
+      DB_PORT: 5432
+      DB_NAME: logging_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
+      RABBITMQ_EXCHANGE: logging_exchange
+      RABBITMQ_QUEUE: logging_queue
+    depends_on:
+      logging-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================
+  # Nginx Reverse Proxy with Angular Frontends
+  # ===========================================
+  nginx:
+    build:
+      context: .
+      dockerfile: ./backend/nginx/Dockerfile
+    container_name: nginx
+    ports:
+      - "4200:4200"  # Admin Portal
+      - "4201:4201"  # Team Portal
+    depends_on:
+      identity-service:
+        condition: service_healthy
+      scrum-core-service:
+        condition: service_healthy
+      collaboration-service:
+        condition: service_healthy
+      reporting-service:
+        condition: service_healthy
+      logging-service:
+        condition: service_healthy
+    networks:
+      - scrum-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:4200/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   scrum-network:
